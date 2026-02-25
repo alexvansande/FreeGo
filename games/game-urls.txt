@@ -1,0 +1,6 @@
+https://raw.githubusercontent.com/nickshanks/Go-Game-Data/master/AlphaGo-Lee-Sedol/Game1.sgf
+https://raw.githubusercontent.com/nickshanks/Go-Game-Data/master/AlphaGo-Lee-Sedol/Game2.sgf
+https://raw.githubusercontent.com/nickshanks/Go-Game-Data/master/AlphaGo-Lee-Sedol/Game3.sgf
+https://raw.githubusercontent.com/nickshanks/Go-Game-Data/master/AlphaGo-Lee-Sedol/Game4.sgf
+https://raw.githubusercontent.com/nickshanks/Go-Game-Data/master/AlphaGo-Lee-Sedol/Game5.sgf
+# Add more SGF URLs, one per line

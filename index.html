@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeGo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Georgia', serif;
+      background: #f5e6d3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      color: #5c4033;
+      margin-bottom: 8px;
+    }
+    #game-container {
+      position: relative;
+      background: #c4a574;
+      border: 3px solid #8b6914;
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #canvas {
+      display: block;
+      cursor: crosshair;
+    }
+    #ui {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      width: 100%;
+      max-width: 600px;
+    }
+    #score-bar {
+      width: 100%;
+      height: 28px;
+      background: #8b7355;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+    }
+    #score-black {
+      background: #2d2d2d;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      min-width: 48px;
+    }
+    #score-neutral {
+      background: #a08060;
+      flex: 1;
+      min-width: 20px;
+    }
+    #score-white {
+      background: #e8e0d0;
+      color: #333;
+      display: flex;
+      align-items: center;
+      padding-left: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      min-width: 48px;
+    }
+    #turn-info {
+      font-size: 16px;
+      color: #5c4033;
+    }
+    #skip-btn {
+      padding: 8px 20px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #8b6914;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #skip-btn:hover {
+      background: #6b5010;
+    }
+    #mode-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    #mode-btns button {
+      padding: 6px 14px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #a08060;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #mode-btns button:hover { background: #8b7355; }
+    #mode-btns button.active { background: #8b6914; }
+    #saved-game-panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 10px;
+      background: #e8dcc8;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    #saved-game-panel.visible { display: flex; }
+    #saved-game-panel select {
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      min-width: 200px;
+    }
+    #saved-game-panel .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    #saved-game-panel button {
+      padding: 6px 12px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #8b6914;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #saved-game-panel button:hover { background: #6b5010; }
+    #saved-game-panel button:disabled { background: #a0a0a0; cursor: not-allowed; }
+    #saved-game-info { font-size: 13px; color: #5c4033; text-align: center; }
+    #commentary-panel {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 10px;
+      margin-top: 8px;
+      background: #e8dcc8;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #5c4033;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    #commentary-panel.visible { display: block; }
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 600px;
+      margin-bottom: 8px;
+    }
+    #config-gear {
+      width: 32px;
+      height: 32px;
+      background: #8b6914;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    #config-gear:hover { background: #6b5010; }
+    #config-panel {
+      display: none;
+      position: absolute;
+      top: 44px;
+      right: 16px;
+      width: 280px;
+      max-height: 70vh;
+      overflow-y: auto;
+      background: #e8dcc8;
+      border: 2px solid #8b6914;
+      border-radius: 4px;
+      padding: 12px;
+      z-index: 20;
+      font-size: 12px;
+    }
+    #config-panel.visible { display: block; }
+    #config-panel h3 { margin: 8px 0 4px; font-size: 13px; color: #5c4033; }
+    #config-panel label { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    #config-panel label span { min-width: 140px; }
+    #config-panel input[type="number"], #config-panel select { width: 80px; padding: 4px; }
+    #config-panel input[type="range"] { width: 100px; }
+    #config-panel .config-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    #config-panel .config-actions button { padding: 6px 10px; font-size: 12px; background: #8b6914; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    #config-panel .config-actions button:hover { background: #6b5010; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>FreeGo</h1>
+    <div style="position: relative;">
+      <button id="config-gear" title="Configuration">&#9881;</button>
+      <div id="config-panel">
+      <h3>Simulation</h3>
+      <label><span>Mode</span><select id="cfg-simulation_mode"><option value="turn_based">Turn-based</option><option value="continuous">Continuous</option></select></label>
+      <label><span>Steps per turn</span><input type="number" id="cfg-simulation_steps_per_turn" min="1" max="500"></label>
+      <h3>Energy</h3>
+      <label><span>Stone max energy</span><input type="number" id="cfg-stone_max_energy" min="0.1" max="100" step="0.5"></label>
+      <label><span>Placement multiplier</span><input type="number" id="cfg-placement_energy_multiplier" min="1" max="20" step="0.5"></label>
+      <label><span>Energy transfer speed</span><input type="number" id="cfg-energy_transfer_speed" min="0" max="200"></label>
+      <label><span>Zero-area death mult</span><input type="number" id="cfg-zero_area_death_speed_multiplier" min="1" max="100"></label>
+      <h3>Exponents</h3>
+      <label><span>Line distance exp</span><input type="range" id="cfg-lineDistanceExponent" min="0" max="4" step="0.5"><span id="cfg-lineDistanceExponent-val"></span></label>
+      <label><span>Triangle area exp</span><input type="range" id="cfg-triangleAreaExponent" min="0" max="4" step="0.5"><span id="cfg-triangleAreaExponent-val"></span></label>
+      <h3>Visual</h3>
+      <label><span>Triangle opacity max</span><input type="number" id="cfg-triangle_opacity_max" min="0.1" max="1" step="0.05"></label>
+      <label><span>Line opacity</span><input type="number" id="cfg-line_opacity" min="0.1" max="1" step="0.05"></label>
+      <h3>Edge</h3>
+      <label><span>Edge energy strength</span><input type="number" id="cfg-edge_energy_strength" min="0" max="1" step="0.001"></label>
+      <label><span>Edge point spacing</span><input type="number" id="cfg-edge_point_spacing" min="5" max="100"></label>
+      <h3>Zero-Energy</h3>
+      <label><span>Behavior</span><select id="cfg-zero_energy_behavior"><option value="flip">Flip</option><option value="dormant">Dormant</option><option value="remove">Remove</option></select></label>
+      <h3>Board</h3>
+      <label><span>Board size</span><select id="cfg-board_size"><option value="free">Free</option><option value="3">3×3</option><option value="5">5×5</option><option value="9">9×9</option><option value="17">17×17</option><option value="19">19×19</option><option value="33">33×33</option></select></label>
+      <label><span>Dynamic resize</span><input type="checkbox" id="cfg-allow_dynamic_grid_resize"></label>
+      <div class="config-actions">
+        <button id="config-export">Export</button>
+        <button id="config-import">Import</button>
+      </div>
+    </div>
+    </div>
+  </div>
+  <div id="game-container">
+    <canvas id="canvas" width="600" height="600"></canvas>
+  </div>
+  <div id="ui">
+    <div id="mode-btns">
+      <button id="mode-free" class="active">Free Play</button>
+      <button id="mode-saved">Saved Game</button>
+    </div>
+    <div id="saved-game-panel">
+      <select id="saved-game-select"></select>
+      <div class="row">
+        <button id="saved-load-btn">Load</button>
+        <button id="saved-prev-btn" disabled>&lt; Prev</button>
+        <button id="saved-next-btn" disabled>Next &gt;</button>
+        <button id="saved-end-btn" disabled>Go to end</button>
+      </div>
+      <div id="saved-game-info">Select a game and click Load</div>
+    </div>
+    <div id="score-bar">
+      <div id="score-black">0%</div>
+      <div id="score-neutral"></div>
+      <div id="score-white">0%</div>
+    </div>
+    <div id="area-score" style="font-size: 12px; color: #5c4033; display: none;"></div>
+    <div id="turn-info">Black to Play</div>
+    <button id="skip-btn">Skip Turn</button>
+    <div id="commentary-panel"></div>
+  </div>
+
+  <script>
+    // ============ Constants ============
+    const BOARD_SIZE = 600;
+    const GRID_SIZE = 19;
+    const GRID_SPACING = BOARD_SIZE / (GRID_SIZE - 1);
+    function getGridParams() {
+      const bs = config.board_size;
+      if (bs === 'free' || !bs) return { size: 19, spacing: BOARD_SIZE / 18 };
+      const n = parseInt(bs, 10) || 19;
+      return { size: n, spacing: BOARD_SIZE / (n - 1) };
+    }
+    function snapToGrid(x, y) {
+      const { size, spacing } = getGridParams();
+      if (config.board_size === 'free') return { x, y };
+      const cx = Math.round(x / spacing);
+      const cy = Math.round(y / spacing);
+      const c = Math.max(0, Math.min(size - 1, cx));
+      const r = Math.max(0, Math.min(size - 1, cy));
+      return { x: c * spacing, y: r * spacing };
+    }
+
+    function hasActiveStoneAt(x, y) {
+      const eps = 1;
+      return state.stones.some(s => !s.disabled && Math.abs(s.x - x) < eps && Math.abs(s.y - y) < eps);
+    }
+    const MIN_STONE_RADIUS = 2;
+    const MAX_STONE_RADIUS = 8;
+    const BASE_STONE_RADIUS = 4;
+    const MIN_LINE_WIDTH = 1;
+    const MAX_LINE_WIDTH = 3;
+    const BASE_STONE_ENERGY = 1;
+    const ENERGY_EPSILON = 0.001;
+    const MAX_ENERGY_ITERATIONS = 20;
+    const STOCHASTIC_INTERVAL_MS = 150;
+    const STOCHASTIC_PAIRS_PER_TICK = 12;
+    const STALE_DRAIN_RATE = 0.05;
+    const PLACEMENT_GROW_RATE = 2;
+    const PLACEMENT_COST_FACTOR = 1;
+    const STARTING_BANK = 30;
+    const RIPPLE_DURATION_MS = 3000;
+    const HOVER_PREVIEW_DELAY_MS = 3000;
+    const TRIANGLE_FADE_IN_MS = 350;
+    const TRIANGLE_FADE_OUT_MS = 350;
+    const LINE_FADE_IN_MS = 350;
+    const LINE_FADE_OUT_MS = 350;
+    // Config (loaded from config.json, fallback to defaults)
+    const DEFAULT_CONFIG = {
+      lineDistanceExponent: 2,
+      triangleAreaExponent: 0.333,
+      deathMode: 'flip',
+      zero_energy_behavior: 'flip',
+      staleFlipThreshold: -5,
+      flipCooldownMs: 2000,
+      stoneDrainRate: 0.01,
+      supportFlowRate: 30,
+      energy_transfer_speed: 30,
+      conflictDrainRate: 0.3,
+      simTimeMode: 'turnBased',
+      simulation_mode: 'turn_based',
+      simulation_steps_per_turn: 60,
+      simTicksPerMove: 60,
+      simDt: 1 / 60,
+      stone_max_energy: 5,
+      placement_energy_multiplier: 3,
+      zero_area_death_speed_multiplier: 10,
+      edge_energy_strength: 0.15,
+      edge_point_spacing: 20,
+      board_size: 'free',
+      allow_dynamic_grid_resize: false,
+      triangle_opacity_max: 0.5,
+      line_opacity: 1
+    };
+    let config = { ...DEFAULT_CONFIG };
+
+    async function loadConfig() {
+      try {
+        const r = await fetch('config.json');
+        if (r.ok) {
+          const loaded = await r.json();
+          config = { ...DEFAULT_CONFIG, ...loaded };
+        }
+      } catch (_) { /* file:// or missing: keep defaults */ }
+      // URL params override config.json
+      const params = new URLSearchParams(location.search);
+      const urlKeys = ['simulation_mode', 'simulation_steps_per_turn', 'stone_max_energy', 'placement_energy_multiplier', 'energy_transfer_speed', 'zero_area_death_speed_multiplier', 'lineDistanceExponent', 'triangleAreaExponent', 'edge_energy_strength', 'edge_point_spacing', 'zero_energy_behavior', 'board_size', 'allow_dynamic_grid_resize', 'triangle_opacity_max', 'line_opacity'];
+      urlKeys.forEach(k => {
+        const v = params.get(k);
+        if (v == null) return;
+        const def = DEFAULT_CONFIG[k];
+        if (typeof def === 'number') config[k] = parseFloat(v) || def;
+        else if (typeof def === 'boolean') config[k] = v === 'true';
+        else config[k] = v;
+      });
+      if (config.zero_energy_behavior) config.deathMode = config.zero_energy_behavior;
+    }
+
+    function applyConfigToUrl() {
+      const params = new URLSearchParams();
+      const urlKeys = ['simulation_mode', 'simulation_steps_per_turn', 'stone_max_energy', 'placement_energy_multiplier', 'energy_transfer_speed', 'zero_area_death_speed_multiplier', 'lineDistanceExponent', 'triangleAreaExponent', 'edge_energy_strength', 'edge_point_spacing', 'zero_energy_behavior', 'board_size', 'allow_dynamic_grid_resize', 'triangle_opacity_max', 'line_opacity'];
+      urlKeys.forEach(k => {
+        const v = config[k];
+        const def = DEFAULT_CONFIG[k];
+        if (v !== def && v != null) params.set(k, String(v));
+      });
+      const qs = params.toString();
+      const url = location.pathname + (qs ? '?' + qs : '');
+      if (location.pathname + (location.search || '') !== url) history.replaceState(null, '', url);
+    }
+
+    function configToUI() {
+      const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!val;
+        else if (el.tagName === 'SELECT') el.value = String(val);
+        else el.value = val;
+        const valEl = document.getElementById(id + '-val');
+        if (valEl) valEl.textContent = val;
+      };
+      set('cfg-simulation_mode', config.simulation_mode ?? config.simTimeMode ?? 'turn_based');
+      set('cfg-simulation_steps_per_turn', config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60);
+      set('cfg-stone_max_energy', config.stone_max_energy ?? 5);
+      set('cfg-placement_energy_multiplier', config.placement_energy_multiplier ?? 3);
+      set('cfg-energy_transfer_speed', config.energy_transfer_speed ?? config.supportFlowRate ?? 30);
+      set('cfg-zero_area_death_speed_multiplier', config.zero_area_death_speed_multiplier ?? 10);
+      set('cfg-lineDistanceExponent', config.lineDistanceExponent ?? 2);
+      set('cfg-triangleAreaExponent', config.triangleAreaExponent ?? 0.333);
+      set('cfg-edge_energy_strength', config.edge_energy_strength ?? 0.15);
+      set('cfg-edge_point_spacing', config.edge_point_spacing ?? 20);
+      set('cfg-zero_energy_behavior', config.zero_energy_behavior ?? config.deathMode ?? 'flip');
+      set('cfg-board_size', config.board_size ?? 'free');
+      set('cfg-allow_dynamic_grid_resize', config.allow_dynamic_grid_resize ?? false);
+      set('cfg-triangle_opacity_max', config.triangle_opacity_max ?? 0.5);
+      set('cfg-line_opacity', config.line_opacity ?? 1);
+      document.getElementById('cfg-lineDistanceExponent-val').textContent = config.lineDistanceExponent ?? 2;
+      document.getElementById('cfg-triangleAreaExponent-val').textContent = config.triangleAreaExponent ?? 0.333;
+    }
+
+    function configFromUI() {
+      const get = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return undefined;
+        if (el.type === 'checkbox') return el.checked;
+        if (el.type === 'number') return parseFloat(el.value) || 0;
+        return el.value;
+      };
+      config.simulation_mode = get('cfg-simulation_mode') || 'turn_based';
+      config.simulation_steps_per_turn = get('cfg-simulation_steps_per_turn') || 60;
+      config.stone_max_energy = get('cfg-stone_max_energy') ?? 5;
+      config.placement_energy_multiplier = get('cfg-placement_energy_multiplier') ?? 3;
+      config.energy_transfer_speed = get('cfg-energy_transfer_speed') ?? 30;
+      config.zero_area_death_speed_multiplier = get('cfg-zero_area_death_speed_multiplier') ?? 10;
+      config.lineDistanceExponent = parseFloat(get('cfg-lineDistanceExponent')) ?? 2;
+      config.triangleAreaExponent = parseFloat(get('cfg-triangleAreaExponent')) ?? 0.333;
+      config.edge_energy_strength = get('cfg-edge_energy_strength') ?? 0.15;
+      config.edge_point_spacing = get('cfg-edge_point_spacing') ?? 20;
+      config.zero_energy_behavior = get('cfg-zero_energy_behavior') || 'flip';
+      config.deathMode = config.zero_energy_behavior;
+      config.board_size = get('cfg-board_size') || 'free';
+      config.allow_dynamic_grid_resize = get('cfg-allow_dynamic_grid_resize') ?? false;
+      config.triangle_opacity_max = get('cfg-triangle_opacity_max') ?? 0.5;
+      config.line_opacity = get('cfg-line_opacity') ?? 1;
+      state.dirty = true;
+    }
+
+    // ============ Geometry Utilities ============
+    // Line-line intersection, point-in-triangle, segment-crosses-triangle for triangle validity
+    function segmentsIntersect(a1, a2, b1, b2) {
+      const [x1, y1] = [a1.x, a1.y];
+      const [x2, y2] = [a2.x, a2.y];
+      const [x3, y3] = [b1.x, b1.y];
+      const [x4, y4] = [b2.x, b2.y];
+
+      if ((x1 === x2 && y1 === y2) || (x3 === x4 && y3 === y4)) return false;
+      const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+      if (Math.abs(denom) < 1e-10) return false;
+
+      const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+      const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+      if (ua < 0 || ua > 1 || ub < 0 || ub > 1) return false;
+      return { x: x1 + ua * (x2 - x1), y: y1 + ua * (y2 - y1) };
+    }
+
+    function segmentsProperlyCross(a1, a2, b1, b2) {
+      const inter = segmentsIntersect(a1, a2, b1, b2);
+      if (!inter) return false;
+      const eps = 1e-6;
+      const atEndpoint = (p, s, e) =>
+        (Math.abs(p.x - s.x) < eps && Math.abs(p.y - s.y) < eps) ||
+        (Math.abs(p.x - e.x) < eps && Math.abs(p.y - e.y) < eps);
+      return !atEndpoint(inter, a1, a2) && !atEndpoint(inter, b1, b2);
+    }
+
+    function pointInTriangle(p, t1, t2, t3) {
+      const sign = (p1, p2, p3) =>
+        (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+      const d1 = sign(p, t1, t2);
+      const d2 = sign(p, t2, t3);
+      const d3 = sign(p, t3, t1);
+      const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+      const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+      return !(hasNeg && hasPos);
+    }
+
+    function segmentIntersectsTriangle(s1, s2, t1, t2, t3) {
+      const edges = [[t1, t2], [t2, t3], [t3, t1]];
+      for (const [e1, e2] of edges) {
+        const inter = segmentsIntersect(s1, s2, e1, e2);
+        if (inter) {
+          const onEndpoint = (p, a, b) =>
+            (Math.abs(p.x - a.x) < 1e-6 && Math.abs(p.y - a.y) < 1e-6) ||
+            (Math.abs(p.x - b.x) < 1e-6 && Math.abs(p.y - b.y) < 1e-6);
+          if (!onEndpoint(inter, s1, s2)) return true;
+        }
+      }
+      return pointInTriangle(s1, t1, t2, t3) || pointInTriangle(s2, t1, t2, t3);
+    }
+
+    function pointStrictlyInsideTriangle(p, t1, t2, t3) {
+      const eps = 1e-6;
+      if (dist(p, t1) < eps || dist(p, t2) < eps || dist(p, t3) < eps) return false;
+      const sign = (p1, p2, p3) =>
+        (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+      const d1 = sign(p, t1, t2), d2 = sign(p, t2, t3), d3 = sign(p, t3, t1);
+      if (Math.abs(d1) < eps || Math.abs(d2) < eps || Math.abs(d3) < eps) return false;
+      return (d1 > 0 && d2 > 0 && d3 > 0) || (d1 < 0 && d2 < 0 && d3 < 0);
+    }
+
+    function segmentCrossesTriangleInterior(s1, s2, t1, t2, t3) {
+      const edges = [[t1, t2], [t2, t3], [t3, t1]];
+      for (const [e1, e2] of edges) {
+        const inter = segmentsIntersect(s1, s2, e1, e2);
+        if (inter) {
+          const onEndpoint = (p, a, b) =>
+            (Math.abs(p.x - a.x) < 1e-6 && Math.abs(p.y - a.y) < 1e-6) ||
+            (Math.abs(p.x - b.x) < 1e-6 && Math.abs(p.y - b.y) < 1e-6);
+          if (!onEndpoint(inter, s1, s2) && !onEndpoint(inter, e1, e2)) return true;
+        }
+      }
+      return pointStrictlyInsideTriangle(s1, t1, t2, t3) || pointStrictlyInsideTriangle(s2, t1, t2, t3);
+    }
+
+    function triangleArea(a, b, c) {
+      return 0.5 * Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y));
+    }
+
+    function circumcircle(a, b, c) {
+      const ax = a.x, ay = a.y, bx = b.x, by = b.y, cx = c.x, cy = c.y;
+      const D = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+      if (Math.abs(D) < 1e-10) return null;
+      const ux = ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / D;
+      const uy = ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / D;
+      return { x: ux, y: uy, r: Math.hypot(ax - ux, ay - uy) };
+    }
+
+    function dist(a, b) {
+      return Math.hypot(b.x - a.x, b.y - a.y);
+    }
+
+    // ============ Area Scoring (Go-style) ============
+    // Build 19x19 grid: each intersection is 'black'|'white'|'empty'
+    function buildGridFromStones() {
+      const grid = [];
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const cx = c * GRID_SPACING, cy = r * GRID_SPACING;
+          const pt = { x: cx, y: cy };
+          let nearest = null, nearestD = GRID_SPACING / 2;
+          for (const s of state.stones) {
+            if (s.stale) continue;
+            const d = dist(pt, s);
+            if (d < nearestD) {
+              nearestD = d;
+              nearest = s;
+            }
+          }
+          grid.push(nearest ? nearest.color : 'empty');
+        }
+      }
+      return grid;
+    }
+
+    function computeAreaScore() {
+      const grid = buildGridFromStones();
+      const idx = (c, r) => r * GRID_SIZE + c;
+      const visited = new Set();
+      let blackTerritory = 0, whiteTerritory = 0, neutral = 0;
+      const adj = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+
+      function floodFill(sc, sr) {
+        const stack = [[sc, sr]];
+        const region = [];
+        const touchesBlack = new Set();
+        const touchesWhite = new Set();
+        while (stack.length > 0) {
+          const [c, r] = stack.pop();
+          const i = idx(c, r);
+          if (visited.has(i)) continue;
+          const cell = grid[i];
+          if (cell !== 'empty') {
+            if (cell === 'black') touchesBlack.add(i);
+            if (cell === 'white') touchesWhite.add(i);
+            continue;
+          }
+          visited.add(i);
+          region.push([c, r]);
+          for (const [dc, dr] of adj) {
+            const nc = c + dc, nr = r + dr;
+            if (nc >= 0 && nc < GRID_SIZE && nr >= 0 && nr < GRID_SIZE) {
+              const ni = idx(nc, nr);
+              const ncell = grid[ni];
+              if (ncell === 'empty' && !visited.has(ni)) stack.push([nc, nr]);
+              else if (ncell === 'black') touchesBlack.add(ni);
+              else if (ncell === 'white') touchesWhite.add(ni);
+            }
+          }
+        }
+        const b = touchesBlack.size > 0, w = touchesWhite.size > 0;
+        if (b && !w) blackTerritory += region.length;
+        else if (w && !b) whiteTerritory += region.length;
+        else neutral += region.length;
+      }
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (grid[idx(c, r)] === 'empty' && !visited.has(idx(c, r))) {
+            floodFill(c, r);
+          }
+        }
+      }
+
+      const blackStones = grid.filter(g => g === 'black').length;
+      const whiteStones = grid.filter(g => g === 'white').length;
+      return {
+        blackTerritory, whiteTerritory, neutral,
+        blackStones, whiteStones,
+        blackScore: blackTerritory + blackStones,
+        whiteScore: whiteTerritory + whiteStones
+      };
+    }
+
+    // ============ SGF Parser ============
+    // SGF coord "pd" -> FreeGo pixel coords; a-s = 0-18
+    function sgfToBoard(sgfCoord) {
+      if (!sgfCoord || sgfCoord.length < 2) return null;
+      const col = sgfCoord.charCodeAt(0) - 97;
+      const row = sgfCoord.charCodeAt(1) - 97;
+      if (col < 0 || col > 18 || row < 0 || row > 18) return null;
+      return { x: col * GRID_SPACING, y: row * GRID_SPACING };
+    }
+
+    function parseSGF(sgfText) {
+      const moves = [];
+      let black = '', white = '', gameName = '', rootComment = '';
+      let boardSize = 19;
+      let i = 0;
+      const inMainLine = [];
+      let justClosed = false;
+
+      function readPropertyValue() {
+        if (sgfText[i] !== '[') return '';
+        i++;
+        let val = '';
+        while (i < sgfText.length) {
+          if (sgfText[i] === '\\' && i + 1 < sgfText.length) {
+            i++;
+            val += sgfText[i++];
+            continue;
+          }
+          if (sgfText[i] === ']') { i++; break; }
+          val += sgfText[i++];
+        }
+        return val;
+      }
+
+      while (i < sgfText.length) {
+        const c = sgfText[i];
+        if (c === '(') {
+          inMainLine.push(!justClosed);
+          justClosed = false;
+          i++;
+          continue;
+        }
+        if (c === ')') {
+          inMainLine.pop();
+          justClosed = true;
+          i++;
+          continue;
+        }
+        if (c === ';') {
+          justClosed = false;
+          i++;
+          while (i < sgfText.length) {
+            while (i < sgfText.length && /\s/.test(sgfText[i])) i++;
+            if (i >= sgfText.length || !/[A-Za-z]/.test(sgfText[i])) break;
+            const collect = inMainLine.length > 0 && inMainLine[inMainLine.length - 1];
+            if (collect && sgfText[i] === 'B' && sgfText[i + 1] === '[') {
+              i += 1;
+              const val = readPropertyValue();
+              if (val.length >= 2) {
+                const pos = sgfToBoard(val);
+                if (pos) moves.push({ color: 'black', coord: val, pos, comment: '' });
+              }
+              continue;
+            }
+            if (collect && sgfText[i] === 'W' && sgfText[i + 1] === '[') {
+              i += 1;
+              const val = readPropertyValue();
+              if (val.length >= 2) {
+                const pos = sgfToBoard(val);
+                if (pos) moves.push({ color: 'white', coord: val, pos, comment: '' });
+              }
+              continue;
+            }
+            if (sgfText[i] === 'C' && sgfText[i + 1] === '[') {
+              i += 1;
+              const val = readPropertyValue();
+              if (collect) {
+                if (moves.length > 0) moves[moves.length - 1].comment = val;
+                else rootComment = val;
+              }
+              continue;
+            }
+            if ((sgfText[i] === 'P' && sgfText[i + 1] === 'B') || (sgfText[i] === 'P' && sgfText[i + 1] === 'W') ||
+                (sgfText[i] === 'G' && sgfText[i + 1] === 'N') || (sgfText[i] === 'S' && sgfText[i + 1] === 'Z')) {
+              const prop = sgfText[i] === 'P' ? (sgfText[i + 1] === 'B' ? 'PB' : 'PW') : (sgfText[i + 1] === 'N' ? 'GN' : 'SZ');
+              i += 2;
+              if (sgfText[i] === '[') {
+                const val = readPropertyValue();
+                if (prop === 'PB') black = val;
+                else if (prop === 'PW') white = val;
+                else if (prop === 'GN') gameName = val;
+                else if (prop === 'SZ') boardSize = parseInt(val, 10) || 19;
+              }
+              continue;
+            }
+            i++;
+            while (i < sgfText.length && sgfText[i] !== '[' && sgfText[i] !== ';' && sgfText[i] !== '(' && sgfText[i] !== ')') i++;
+            if (sgfText[i] === '[') {
+              while (sgfText[i] === '[') readPropertyValue();
+            }
+          }
+          continue;
+        }
+        i++;
+      }
+      if (boardSize !== 19) return { moves: [], black, white, gameName, rootComment, error: 'Only 19x19 boards supported' };
+      return { moves, black, white, gameName, rootComment };
+    }
+
+    // ============ Game State ============
+    // Stones and lines are mutable; triangles recomputed each frame
+    const state = {
+      stones: [],
+      lines: [],
+      triangles: [],
+      currentPlayer: 'black',
+      viewport: { x: 0, y: 0, scale: 1 },
+      isDragging: false,
+      lastDrag: null,
+      dragStart: null,
+      retestQueue: [],
+      dirty: true,
+      mouseBoardPos: null,
+      blackBank: STARTING_BANK,
+      whiteBank: STARTING_BANK,
+      placementState: null,
+      lastPlacementTime: 0,
+      ripples: [],
+      triangleRenderCache: {},
+      lineRenderCache: {},
+      placementCount: 0,
+      simulationPaused: true,
+      ticksRemainingThisTurn: 0,
+      mode: 'free',
+      savedGameMoves: [],
+      savedGameCurrentIndex: 0,
+      savedGameMeta: null,
+      savedGameRootComment: '',
+      gameManifest: []
+    };
+
+    // ============ Line Key ============
+    // Canonical key for line (stone pair) and triangle (vertex triple) for cache lookups
+    function lineKey(a, b) {
+      const i = state.stones.indexOf(a);
+      const j = state.stones.indexOf(b);
+      return i < j ? `${i}-${j}` : `${j}-${i}`;
+    }
+
+    function hasLine(a, b) {
+      return state.lines.some(l => (l.stoneA === a && l.stoneB === b) || (l.stoneA === b && l.stoneB === a));
+    }
+
+    function getLineCount(stone) {
+      return state.lines.filter(l => l.stoneA === stone || l.stoneB === stone).length;
+    }
+
+    function triangleKey(t) {
+      if (t.isEdge) {
+        const stone = t.vertices[2];
+        const stoneIdx = state.stones.indexOf(stone);
+        const e1 = t.vertices[0], e2 = t.vertices[1];
+        const i1 = e1.i ?? 0, i2 = e2.i ?? 0;
+        return `edge-${stoneIdx}-${Math.min(i1, i2)}-${Math.max(i1, i2)}`;
+      }
+      const idx = [state.stones.indexOf(t.vertices[0]), state.stones.indexOf(t.vertices[1]), state.stones.indexOf(t.vertices[2])].sort((a, b) => a - b);
+      return idx.join('-');
+    }
+
+    function getSupportLineCount(stone) {
+      return state.lines.filter(l => !l.isConflict && (l.stoneA === stone || l.stoneB === stone)).length;
+    }
+
+    function getEdgePointsAndAssignments() {
+      const activeStones = state.stones.filter(s => !s.disabled && !s.stale);
+      if (activeStones.length < 3) return { points: [], virtualLines: [], showEdge: false };
+      const hasBlack = activeStones.some(s => s.color === 'black');
+      const hasWhite = activeStones.some(s => s.color === 'white');
+      if (!hasBlack || !hasWhite) return { points: [], virtualLines: [], showEdge: false };
+
+      const baseSpacing = config.edge_point_spacing ?? 20;
+      const spacing = Math.max(10, (baseSpacing * BOARD_SIZE) / 600);
+      const edgeStrength = config.edge_energy_strength ?? 0.15;
+      const segments = [];
+      for (let x = 0; x <= BOARD_SIZE; x += spacing) segments.push({ x, y: 0 });
+      for (let y = spacing; y < BOARD_SIZE; y += spacing) segments.push({ x: BOARD_SIZE, y });
+      for (let x = BOARD_SIZE; x >= 0; x -= spacing) segments.push({ x, y: BOARD_SIZE });
+      for (let y = BOARD_SIZE - spacing; y > 0; y -= spacing) segments.push({ x: 0, y });
+      let assignments = segments.map((pt, i) => {
+        let nearest = null, nearestD = Infinity;
+        for (const s of activeStones) {
+          const d = dist(pt, s);
+          if (d < nearestD) { nearestD = d; nearest = s; }
+        }
+        return { pt: { ...pt, i }, stone: nearest };
+      });
+
+      // Cleanup: remove virtual stones connected to two virtual stones of the same color
+      // Never remove corners - they represent important angles for proper shading
+      const eps = spacing * 0.6;
+      const isCorner = (pt) =>
+        (Math.abs(pt.x) < eps && Math.abs(pt.y) < eps) ||
+        (Math.abs(pt.x - BOARD_SIZE) < eps && Math.abs(pt.y) < eps) ||
+        (Math.abs(pt.x - BOARD_SIZE) < eps && Math.abs(pt.y - BOARD_SIZE) < eps) ||
+        (Math.abs(pt.x) < eps && Math.abs(pt.y - BOARD_SIZE) < eps);
+      assignments = assignments.filter((a, i) => {
+        if (isCorner(a.pt)) return true;
+        const prev = assignments[(i - 1 + assignments.length) % assignments.length];
+        const next = assignments[(i + 1) % assignments.length];
+        if (!a.stone || !prev.stone || !next.stone) return true;
+        const sameAsPrev = prev.stone === a.stone;
+        const sameAsNext = next.stone === a.stone;
+        return !(sameAsPrev && sameAsNext);
+      });
+      assignments.forEach((a, i) => { a.pt.i = i; });
+
+      const virtualLines = assignments.filter(a => a.stone).map(a => ({
+        stoneA: { x: a.pt.x, y: a.pt.y, energy: edgeStrength, isEdge: true },
+        stoneB: a.stone,
+        isVirtual: true
+      }));
+      return { points: assignments, virtualLines, showEdge: true };
+    }
+
+    // Line power = (eA/nA + eB/nB) / len^exponent; configurable exponent
+    function computeLinePower(line, lineExistsInState = true) {
+      const countA = getLineCount(line.stoneA);
+      const countB = getLineCount(line.stoneB);
+      const nA = Math.max(1, lineExistsInState ? countA - 1 : countA);
+      const nB = Math.max(1, lineExistsInState ? countB - 1 : countB);
+      const len = dist(line.stoneA, line.stoneB);
+      if (len < 1e-6) return 0;
+      const eA = Math.max(0, line.stoneA.energy);
+      const eB = Math.max(0, line.stoneB.energy);
+      const exp = config.lineDistanceExponent ?? 2;
+      return (eA / nA + eB / nB) / Math.pow(len, exp);
+    }
+
+    function getPreviewLines(previewPos) {
+      const previewStone = { x: previewPos.x, y: previewPos.y, color: state.currentPlayer, energy: 1 };
+      const lines = [];
+      for (const stone of state.stones) {
+        const isConflict = stone.color !== previewStone.color;
+        const nOther = Math.max(1, getLineCount(stone));
+        const len = dist(previewStone, stone);
+        if (len < 1e-6) continue;
+        const exp = config.lineDistanceExponent ?? 2;
+        const power = (1 + Math.max(0, stone.energy) / nOther) / Math.pow(len, exp);
+
+        let wouldSucceed = true;
+        for (const line of state.lines) {
+          const oa = line.stoneA, ob = line.stoneB;
+          if (oa === stone || ob === stone) continue;
+          if (!segmentsProperlyCross(previewStone, stone, oa, ob)) continue;
+          const otherPower = computeLinePower(line);
+          if (power <= otherPower) {
+            wouldSucceed = false;
+            break;
+          }
+        }
+        if (wouldSucceed) {
+          lines.push({ from: previewStone, to: stone, isConflict, power });
+        }
+      }
+      return lines;
+    }
+
+    // ============ Triangle Detection ============
+    // Valid triangle: same-color vertices, connected by same-color lines, no line inside, no same-color stone inside
+    // Uses line-based triangulation (Delaunay only when explicitly enabled would be heavier)
+    function findTriangles() {
+      const tri = [];
+      const sameColorLines = state.lines.filter(l => !l.isConflict);
+
+      for (let i = 0; i < state.stones.length; i++) {
+        for (let j = i + 1; j < state.stones.length; j++) {
+          for (let k = j + 1; k < state.stones.length; k++) {
+            const a = state.stones[i], b = state.stones[j], c = state.stones[k];
+            if (a.disabled || b.disabled || c.disabled) continue;
+            if (a.color !== b.color || b.color !== c.color) continue;
+
+            const hasAB = sameColorLines.some(l => (l.stoneA === a && l.stoneB === b) || (l.stoneA === b && l.stoneB === a));
+            const hasBC = sameColorLines.some(l => (l.stoneA === b && l.stoneB === c) || (l.stoneA === c && l.stoneB === b));
+            const hasCA = sameColorLines.some(l => (l.stoneA === c && l.stoneB === a) || (l.stoneA === a && l.stoneB === c));
+            if (!hasAB || !hasBC || !hasCA) continue;
+
+            const area = triangleArea(a, b, c);
+            if (area < 1e-6) continue;
+
+            let hasLineInside = false;
+            for (const line of state.lines) {
+              const s1 = line.stoneA, s2 = line.stoneB;
+              const isEdge = (s1 === a && s2 === b) || (s1 === b && s2 === a) ||
+                (s1 === b && s2 === c) || (s1 === c && s2 === b) ||
+                (s1 === c && s2 === a) || (s1 === a && s2 === c);
+              if (isEdge) continue;
+              if (segmentCrossesTriangleInterior(s1, s2, a, b, c)) {
+                hasLineInside = true;
+                break;
+              }
+            }
+            let hasSameColorStoneInside = false;
+            const triColor = a.color;
+            for (const stone of state.stones) {
+              if (stone === a || stone === b || stone === c) continue;
+              if (stone.color !== triColor) continue;
+              if (pointStrictlyInsideTriangle(stone, a, b, c)) {
+                hasSameColorStoneInside = true;
+                break;
+              }
+            }
+            if (!hasLineInside && !hasSameColorStoneInside) {
+              const exp = config.triangleAreaExponent ?? 0.333;
+              tri.push({ vertices: [a, b, c], area, energy: Math.pow(area, exp) });
+            }
+          }
+        }
+      }
+      return tri;
+    }
+
+    function computeStoneEnergy(stone) {
+      const sum = state.triangles
+        .filter(t => t.vertices.includes(stone))
+        .reduce((s, t) => s + t.energy, 0);
+      return Math.max(BASE_STONE_ENERGY, sum / 3);
+    }
+
+    // ============ Energy Solver ============
+    // When lines cross, stronger line wins; weaker is removed and queued for retest
+    function resolveIntersections() {
+      let changed = false;
+      const toRemove = new Set();
+      for (let i = 0; i < state.lines.length; i++) {
+        const lineA = state.lines[i];
+        const a1 = lineA.stoneA, a2 = lineA.stoneB;
+        const powerA = computeLinePower(lineA);
+
+        for (let j = i + 1; j < state.lines.length; j++) {
+          const lineB = state.lines[j];
+          const b1 = lineB.stoneA, b2 = lineB.stoneB;
+          if (a1 === b1 || a1 === b2 || a2 === b1 || a2 === b2) continue;
+
+          if (!segmentsProperlyCross(a1, a2, b1, b2)) continue;
+
+          const powerB = computeLinePower(lineB);
+          if (powerA >= powerB) {
+            toRemove.add(j);
+            state.retestQueue.push([b1, b2]);
+            changed = true;
+          } else {
+            toRemove.add(i);
+            state.retestQueue.push([a1, a2]);
+            changed = true;
+          }
+        }
+      }
+      state.lines = state.lines.filter((_, idx) => !toRemove.has(idx));
+      return changed;
+    }
+
+    function energyToRadius(energy) {
+      const e = Math.max(0, energy);
+      return MIN_STONE_RADIUS + (e / (e + BASE_STONE_ENERGY)) * (MAX_STONE_RADIUS - MIN_STONE_RADIUS);
+    }
+
+    function findEdgeTriangles() {
+      const { points } = getEdgePointsAndAssignments();
+      const tri = [];
+      const n = points.length;
+      for (let j = 0; j < n; j++) {
+        const a1 = points[j], a2 = points[(j + 1) % n];
+        if (!a1.stone || !a2.stone) continue;
+        const e1 = a1.pt, e2 = a2.pt;
+        const stone = a1.stone === a2.stone ? a1.stone : (
+          dist({ x: (e1.x + e2.x) / 2, y: (e1.y + e2.y) / 2 }, a1.stone) < dist({ x: (e1.x + e2.x) / 2, y: (e1.y + e2.y) / 2 }, a2.stone) ? a1.stone : a2.stone
+        );
+        const area = triangleArea(e1, e2, stone);
+        if (area > 1e-6) {
+          const exp = config.triangleAreaExponent ?? 0.333;
+          tri.push({ vertices: [e1, e2, stone], area, energy: Math.pow(area, exp), isEdge: true });
+        }
+      }
+      return tri;
+    }
+
+    // TriFeed from triangles, drains (base + conflict), support flow, flip stale stones
+    function simulationTick(dt) {
+      state.triangles = findTriangles();
+      const edgeTriangles = findEdgeTriangles();
+      state.triangles = state.triangles.concat(edgeTriangles);
+
+      state.stones.forEach(s => { s.stale = s.energy <= 0; });
+
+      const activeTriangles = state.triangles.filter(t =>
+        t.vertices.every(v => !v.stale)
+      );
+
+      const stoneDeltas = new Map();
+      state.stones.forEach(s => { stoneDeltas.set(s, 0); });
+
+      state.stones.forEach(s => {
+        if (s.stale || s.disabled) return;
+        const triFeed = activeTriangles
+          .filter(t => t.vertices.includes(s))
+          .reduce((sum, t) => sum + t.energy / 3, 0);
+        stoneDeltas.set(s, stoneDeltas.get(s) + triFeed);
+      });
+
+      state.stones.forEach(s => {
+        if (s.disabled) return;
+        if (s.stale) {
+          stoneDeltas.set(s, stoneDeltas.get(s) - STALE_DRAIN_RATE * dt);
+        } else {
+          const radius = energyToRadius(s.energy);
+          let drain = config.stoneDrainRate * dt * s.energy * (radius / BASE_STONE_RADIUS);
+          const hasArea = activeTriangles.some(t => t.vertices.includes(s));
+          if (!hasArea) drain *= (config.zero_area_death_speed_multiplier ?? 1);
+          stoneDeltas.set(s, stoneDeltas.get(s) - drain);
+        }
+      });
+
+      const supportLines = state.lines.filter(l => !l.isConflict && !l.stoneA.disabled && !l.stoneB.disabled);
+      supportLines.forEach(line => {
+        const a = line.stoneA, b = line.stoneB;
+        if (a.stale && b.stale) return;
+        const nA = Math.max(1, getSupportLineCount(a));
+        const nB = Math.max(1, getSupportLineCount(b));
+        const len = dist(a, b);
+        if (len < 1e-6) return;
+        const rate = (config.energy_transfer_speed ?? config.supportFlowRate ?? 30) * dt / (len * len);
+        const outflowA = a.stale ? 0 : (a.energy / nA) * rate;
+        const outflowB = b.stale ? 0 : (b.energy / nB) * rate;
+        if (!a.stale) stoneDeltas.set(a, stoneDeltas.get(a) - (a.energy / nA) * rate + outflowB);
+        if (!b.stale) stoneDeltas.set(b, stoneDeltas.get(b) - (b.energy / nB) * rate + outflowA);
+      });
+
+      const conflictLines = state.lines.filter(l => l.isConflict && !l.stoneA.disabled && !l.stoneB.disabled);
+      conflictLines.forEach(line => {
+        const a = line.stoneA, b = line.stoneB;
+        const len = dist(a, b);
+        if (len < 1e-6) return;
+        const drain = config.conflictDrainRate * dt / (len * len);
+        stoneDeltas.set(a, stoneDeltas.get(a) - drain);
+        stoneDeltas.set(b, stoneDeltas.get(b) - drain);
+      });
+
+      const { virtualLines } = getEdgePointsAndAssignments();
+      const transferSpeed = config.energy_transfer_speed ?? config.supportFlowRate ?? 30;
+      virtualLines.forEach(vl => {
+        const edgePt = vl.stoneA;
+        const s = vl.stoneB;
+        const len = dist(edgePt, s);
+        if (len < 1e-6) return;
+        const rate = transferSpeed * dt / (len * len);
+        const nS = Math.max(1, getSupportLineCount(s));
+        const inflow = edgePt.energy * rate;
+        const outflow = (s.energy / nS) * rate;
+        stoneDeltas.set(s, stoneDeltas.get(s) + inflow - outflow);
+      });
+
+      const maxE = config.stone_max_energy ?? 5;
+      stoneDeltas.forEach((delta, s) => {
+        s.energy = s.energy + delta;
+        if (!s.placedThisTurn && !s.disabled) s.energy = Math.min(maxE, s.energy);
+      });
+
+      const hasBlackTriangles = state.triangles.some(t => t.vertices[0].color === 'black' && t.vertices.every(v => !v.stale));
+      const hasWhiteTriangles = state.triangles.some(t => t.vertices[0].color === 'white' && t.vertices.every(v => !v.stale));
+      const neitherHasTriangles = !hasBlackTriangles && !hasWhiteTriangles;
+
+      const now = Date.now();
+      const toRemove = [];
+      const zeroBehavior = config.zero_energy_behavior ?? config.deathMode ?? 'flip';
+      if (!neitherHasTriangles) {
+        state.stones.forEach(s => {
+          if (s.disabled) return;
+          if (s.energy <= config.staleFlipThreshold) {
+            const lastFlip = s.lastFlipTime || 0;
+            if (now - lastFlip >= config.flipCooldownMs) {
+              if (zeroBehavior === 'remove') {
+                toRemove.push(s);
+              } else if (zeroBehavior === 'dormant') {
+                s.disabled = true;
+                s.energy = 0;
+                s.stale = true;
+              } else {
+                s.color = s.color === 'black' ? 'white' : 'black';
+                s.energy = BASE_STONE_ENERGY;
+                s.stale = false;
+                s.lastFlipTime = now;
+                state.ripples.push({ startTime: now, origin: { x: s.x, y: s.y }, type: 'flip' });
+                state.lines.filter(l => l.stoneA === s || l.stoneB === s).forEach(l => {
+                  l.isConflict = l.stoneA.color !== l.stoneB.color;
+                });
+              }
+            }
+          }
+        });
+      }
+      if (toRemove.length > 0) {
+        const removedSet = new Set(toRemove);
+        toRemove.forEach(s => {
+          state.lines = state.lines.filter(l => l.stoneA !== s && l.stoneB !== s);
+          state.stones = state.stones.filter(x => x !== s);
+        });
+        state.retestQueue = state.retestQueue.filter(([a, b]) => !removedSet.has(a) && !removedSet.has(b));
+      }
+
+      state.lines.forEach(l => { l.power = computeLinePower(l); });
+      resolveIntersections();
+
+      state.dirty = true;
+    }
+
+    // ============ Line System (Stochastic) ============
+    // Lines form between stones; crossing lines resolved by power (stronger wins)
+    function tryAddLine(stoneA, stoneB) {
+      if (hasLine(stoneA, stoneB)) return false;
+      if (stoneA === stoneB) return false;
+
+      const isConflict = stoneA.color !== stoneB.color;
+      const tempLine = { stoneA, stoneB, power: 0, isConflict };
+      const power = computeLinePower(tempLine, false);
+
+      for (const line of state.lines) {
+        const otherA = line.stoneA, otherB = line.stoneB;
+        if (otherA === stoneA || otherA === stoneB || otherB === stoneA || otherB === stoneB) continue;
+
+        if (!segmentsProperlyCross(stoneA, stoneB, otherA, otherB)) continue;
+
+        const otherPower = computeLinePower(line);
+        if (power <= otherPower) return false;
+        state.lines = state.lines.filter(l => l !== line);
+        state.retestQueue.push([otherA, otherB]);
+      }
+
+      state.lines.push({ stoneA, stoneB, power, isConflict });
+      return true;
+    }
+
+    function stochasticTick() {
+      if (state.stones.length < 2) return;
+
+      const pairs = [];
+      for (let i = 0; i < state.stones.length; i++) {
+        for (let j = i + 1; j < state.stones.length; j++) {
+          if (!hasLine(state.stones[i], state.stones[j])) {
+            pairs.push([state.stones[i], state.stones[j]]);
+          }
+        }
+      }
+
+      let tries = 0;
+      while (state.retestQueue.length > 0 && tries < STOCHASTIC_PAIRS_PER_TICK) {
+        const [a, b] = state.retestQueue.shift();
+        tryAddLine(a, b);
+        tries++;
+      }
+      while (pairs.length > 0 && tries < STOCHASTIC_PAIRS_PER_TICK) {
+        const idx = Math.floor(Math.random() * pairs.length);
+        const [a, b] = pairs.splice(idx, 1)[0];
+        tryAddLine(a, b);
+        tries++;
+      }
+    }
+
+    const MAX_LINE_LENGTH = 120;
+    const POPULATE_CHUNK_SIZE = 500;
+
+    function populateInitialLines() {
+      for (let i = 0; i < state.stones.length; i++) {
+        for (let j = i + 1; j < state.stones.length; j++) {
+          if (dist(state.stones[i], state.stones[j]) > MAX_LINE_LENGTH) continue;
+          tryAddLine(state.stones[i], state.stones[j]);
+        }
+      }
+    }
+
+    function populateInitialLinesChunked(onComplete) {
+      const pairs = [];
+      for (let i = 0; i < state.stones.length; i++) {
+        for (let j = i + 1; j < state.stones.length; j++) {
+          if (dist(state.stones[i], state.stones[j]) <= MAX_LINE_LENGTH) {
+            pairs.push([state.stones[i], state.stones[j]]);
+          }
+        }
+      }
+      let idx = 0;
+      function processChunk() {
+        const end = Math.min(idx + POPULATE_CHUNK_SIZE, pairs.length);
+        for (; idx < end; idx++) tryAddLine(pairs[idx][0], pairs[idx][1]);
+        if (idx < pairs.length) {
+          requestAnimationFrame(processChunk);
+        } else {
+          if (onComplete) onComplete();
+        }
+      }
+      if (pairs.length === 0) {
+        if (onComplete) onComplete();
+      } else {
+        processChunk();
+      }
+    }
+
+    // ============ Viewport / Coordinates ============
+    // Pan/zoom via viewport; screenToBoard/boardToScreen for input and drawing
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function screenToBoard(sx, sy) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (sx - rect.left) * scaleX;
+      const y = (sy - rect.top) * scaleY;
+      return {
+        x: (x - state.viewport.x) / state.viewport.scale,
+        y: (y - state.viewport.y) / state.viewport.scale
+      };
+    }
+
+    function boardToScreen(bx, by) {
+      return {
+        x: bx * state.viewport.scale + state.viewport.x,
+        y: by * state.viewport.scale + state.viewport.y
+      };
+    }
+
+    // ============ Rendering ============
+    // Order: board, ripples, grid, triangles (cached+fade), lines (cached+fade), stones, preview
+    function render() {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#f5e6d3';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      ctx.save();
+      ctx.setTransform(state.viewport.scale, 0, 0, state.viewport.scale, state.viewport.x, state.viewport.y);
+
+      const boardMin = 0, boardMax = BOARD_SIZE;
+      ctx.fillStyle = '#c4a574';
+      ctx.fillRect(boardMin, boardMin, boardMax - boardMin, boardMax - boardMin);
+
+      state.ripples = state.ripples.filter(r => {
+        const elapsed = Date.now() - r.startTime;
+        const t = Math.min(1, elapsed / RIPPLE_DURATION_MS);
+        const growth = 1 - Math.pow(1 - t, 2);
+        const maxRadius = Math.hypot(BOARD_SIZE, BOARD_SIZE) * 0.35;
+        const radius = growth * maxRadius;
+        const alpha = 0.45 * (1 - growth);
+        const color = r.type === 'flip' ? `rgba(200,60,60,${alpha})` : `rgba(255,248,230,${alpha})`;
+        for (let i = 1; i <= 3; i++) {
+          ctx.beginPath();
+          ctx.arc(r.origin.x, r.origin.y, radius * (i / 3), 0, Math.PI * 2);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2 / state.viewport.scale;
+          ctx.stroke();
+        }
+        return t < 1;
+      });
+
+      const { spacing } = getGridParams();
+      ctx.strokeStyle = '#a08060';
+      ctx.lineWidth = 1 / state.viewport.scale;
+      for (let x = 0; x <= boardMax; x += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, boardMax);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= boardMax; y += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(boardMax, y);
+        ctx.stroke();
+      }
+
+      const maxStoneEnergy = Math.max(0.01, ...state.stones.map(s => Math.max(0, s.energy)));
+      const maxLinePower = Math.max(0.01, ...state.lines.map(l => l.power || 0));
+
+      const activeTrianglesToRender = state.triangles.filter(t => t.vertices.every(v => !v.stale));
+      const currentKeys = new Set(activeTrianglesToRender.map(t => triangleKey(t)));
+      const now = Date.now();
+
+      activeTrianglesToRender.forEach(t => {
+        const key = triangleKey(t);
+        let entry = state.triangleRenderCache[key];
+        if (!entry) {
+          const triColor = t.isEdge ? (t.vertices[2]?.color ?? t.vertices[0].color) : t.vertices[0].color;
+          entry = { vertices: t.vertices, area: t.area, color: triColor, fadeState: 'in', startTime: now };
+          state.triangleRenderCache[key] = entry;
+        } else {
+          entry.vertices = t.vertices;
+          entry.area = t.area;
+          entry.color = t.isEdge ? (t.vertices[2]?.color ?? t.vertices[0].color) : t.vertices[0].color;
+          if (entry.fadeState === 'out') {
+            entry.fadeState = 'in';
+            entry.startTime = now;
+          } else if (entry.fadeState === 'in') {
+            if (now - entry.startTime >= TRIANGLE_FADE_IN_MS) entry.fadeState = 'visible';
+          }
+        }
+      });
+
+      Object.keys(state.triangleRenderCache).forEach(key => {
+        const entry = state.triangleRenderCache[key];
+        if (!currentKeys.has(key)) {
+          if (entry.fadeState !== 'out') {
+            entry.fadeState = 'out';
+            entry.startTime = now;
+          }
+        }
+      });
+
+      const boardArea = BOARD_SIZE * BOARD_SIZE;
+      const sqrtBoardArea = Math.sqrt(boardArea);
+
+      Object.entries(state.triangleRenderCache).forEach(([key, entry]) => {
+        let fadeMult = 1;
+        if (entry.fadeState === 'in') {
+          const elapsed = now - entry.startTime;
+          fadeMult = Math.min(1, elapsed / TRIANGLE_FADE_IN_MS);
+        } else if (entry.fadeState === 'out') {
+          const elapsed = now - entry.startTime;
+          fadeMult = Math.max(0, 1 - elapsed / TRIANGLE_FADE_OUT_MS);
+          if (fadeMult <= 0) {
+            delete state.triangleRenderCache[key];
+            return;
+          }
+        }
+        // Opacity: 1 - sqrt(area)/sqrt(boardArea); smaller triangles more opaque; cap at config
+        const maxOp = config.triangle_opacity_max ?? 0.5;
+        const rawOpacity = Math.max(0, Math.min(1, 1 - Math.sqrt(entry.area) / sqrtBoardArea)) * fadeMult;
+        const baseOpacity = Math.max(0.12, Math.min(maxOp, rawOpacity));
+        ctx.beginPath();
+        ctx.moveTo(entry.vertices[0].x, entry.vertices[0].y);
+        ctx.lineTo(entry.vertices[1].x, entry.vertices[1].y);
+        ctx.lineTo(entry.vertices[2].x, entry.vertices[2].y);
+        ctx.closePath();
+        ctx.fillStyle = entry.color === 'black' ? `rgba(0,0,0,${baseOpacity})` : `rgba(255,255,255,${baseOpacity})`;
+        ctx.fill();
+        ctx.strokeStyle = entry.color === 'black' ? `rgba(0,0,0,${Math.min(1, baseOpacity + 0.15)})` : `rgba(255,255,255,${Math.min(1, baseOpacity + 0.2)})`;
+        ctx.lineWidth = 1 / state.viewport.scale;
+        ctx.stroke();
+      });
+
+      // Perimeter segments: lines between all adjacent edge points to close edge triangles
+      const { points: edgeAssignments, virtualLines } = getEdgePointsAndAssignments();
+      const lineOp = config.line_opacity ?? 1;
+      const n = edgeAssignments.length;
+      for (let j = 0; j < n; j++) {
+        const a1 = edgeAssignments[j], a2 = edgeAssignments[(j + 1) % n];
+        if (!a1.stone || !a2.stone) continue;
+        const mid = { x: (a1.pt.x + a2.pt.x) / 2, y: (a1.pt.y + a2.pt.y) / 2 };
+        const stone = a1.stone === a2.stone ? a1.stone : (dist(mid, a1.stone) < dist(mid, a2.stone) ? a1.stone : a2.stone);
+        ctx.strokeStyle = stone.color === 'black' ? `rgba(0,0,0,${lineOp * 0.4})` : `rgba(255,255,255,${lineOp * 0.4})`;
+        ctx.lineWidth = 1.5 / state.viewport.scale;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(a1.pt.x, a1.pt.y);
+        ctx.lineTo(a2.pt.x, a2.pt.y);
+        ctx.stroke();
+      }
+      // Virtual lines: edge point to stone (complete the triangle edges)
+      virtualLines.forEach(vl => {
+        ctx.strokeStyle = vl.stoneB.color === 'black' ? `rgba(0,0,0,${lineOp * 0.4})` : `rgba(255,255,255,${lineOp * 0.4})`;
+        ctx.lineWidth = 1.5 / state.viewport.scale;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(vl.stoneA.x, vl.stoneA.y);
+        ctx.lineTo(vl.stoneB.x, vl.stoneB.y);
+        ctx.stroke();
+      });
+
+      const currentLineKeys = new Set(state.lines.map(l => lineKey(l.stoneA, l.stoneB)));
+      state.lines.forEach(line => {
+        const key = lineKey(line.stoneA, line.stoneB);
+        let entry = state.lineRenderCache[key];
+        if (!entry) {
+          entry = { stoneA: line.stoneA, stoneB: line.stoneB, power: line.power || 0, isConflict: line.isConflict, fadeState: 'in', startTime: now };
+          state.lineRenderCache[key] = entry;
+        } else {
+          entry.stoneA = line.stoneA;
+          entry.stoneB = line.stoneB;
+          entry.power = line.power || 0;
+          entry.isConflict = line.isConflict;
+          if (entry.fadeState === 'out') {
+            entry.fadeState = 'in';
+            entry.startTime = now;
+          } else if (entry.fadeState === 'in' && now - entry.startTime >= LINE_FADE_IN_MS) {
+            entry.fadeState = 'visible';
+          }
+        }
+      });
+      Object.keys(state.lineRenderCache).forEach(key => {
+        const entry = state.lineRenderCache[key];
+        if (!currentLineKeys.has(key)) {
+          if (entry.fadeState !== 'out') {
+            entry.fadeState = 'out';
+            entry.startTime = now;
+          }
+        }
+      });
+
+      Object.keys(state.lineRenderCache).forEach(key => {
+        const entry = state.lineRenderCache[key];
+        if (entry.fadeState === 'out' && now - entry.startTime >= LINE_FADE_OUT_MS) {
+          delete state.lineRenderCache[key];
+        }
+      });
+      const sortedCachedLines = Object.values(state.lineRenderCache).sort((a, b) => (a.power || 0) - (b.power || 0));
+      sortedCachedLines.forEach(entry => {
+        let fadeMult = 1;
+        if (entry.fadeState === 'in') {
+          fadeMult = Math.min(1, (now - entry.startTime) / LINE_FADE_IN_MS);
+        } else if (entry.fadeState === 'out') {
+          fadeMult = Math.max(0, 1 - (now - entry.startTime) / LINE_FADE_OUT_MS);
+          if (fadeMult <= 0) return;
+        }
+        const power = entry.power || 0;
+        let width = MIN_LINE_WIDTH + (power / maxLinePower) * (MAX_LINE_WIDTH - MIN_LINE_WIDTH);
+        let baseOpacity = config.line_opacity ?? 1;
+        if (width < MIN_LINE_WIDTH) {
+          width = MIN_LINE_WIDTH;
+          baseOpacity = Math.max(0.2, (power / maxLinePower) * (config.line_opacity ?? 1));
+        }
+        const opacity = baseOpacity * fadeMult;
+        ctx.strokeStyle = entry.isConflict
+          ? `rgba(200,50,50,${opacity})`
+          : entry.stoneA.color === 'black'
+            ? `rgba(0,0,0,${opacity})`
+            : `rgba(255,255,255,${opacity})`;
+        ctx.lineWidth = width / state.viewport.scale;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(entry.stoneA.x, entry.stoneA.y);
+        ctx.lineTo(entry.stoneB.x, entry.stoneB.y);
+        ctx.stroke();
+      });
+
+      const DISABLED_STONE_RADIUS = 2;
+      state.stones.forEach(stone => {
+        let radius;
+        if (stone.disabled) {
+          radius = DISABLED_STONE_RADIUS / state.viewport.scale;
+        } else {
+          const energy = Math.max(0, stone.energy || 0);
+          radius = MIN_STONE_RADIUS + (energy / maxStoneEnergy) * (MAX_STONE_RADIUS - MIN_STONE_RADIUS);
+          if (radius < MIN_STONE_RADIUS) radius = MIN_STONE_RADIUS;
+          radius /= state.viewport.scale;
+        }
+
+        ctx.beginPath();
+        ctx.arc(stone.x, stone.y, radius, 0, Math.PI * 2);
+        const opacity = stone.disabled ? 0.6 : (stone.stale ? 0.5 : 1);
+        if (stone.disabled) {
+          ctx.strokeStyle = stone.color === 'black' ? `rgba(51,51,51,${opacity})` : `rgba(204,204,204,${opacity})`;
+          ctx.lineWidth = 1 / state.viewport.scale;
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = stone.color === 'black' ? `rgba(26,26,26,${opacity})` : `rgba(240,240,240,${opacity})`;
+          ctx.fill();
+          ctx.strokeStyle = stone.color === 'black' ? `rgba(51,51,51,${opacity})` : `rgba(204,204,204,${opacity})`;
+          ctx.lineWidth = 1 / state.viewport.scale;
+          ctx.stroke();
+        }
+      });
+
+      if (state.placementState) {
+        const { startTime, startPos } = state.placementState;
+        const holdDuration = (Date.now() - startTime) / 1000;
+        const placementRadius = Math.max(MIN_STONE_RADIUS, Math.min(MAX_STONE_RADIUS, MIN_STONE_RADIUS + PLACEMENT_GROW_RATE * holdDuration));
+        const radius = placementRadius / state.viewport.scale;
+        ctx.beginPath();
+        ctx.arc(startPos.x, startPos.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = state.currentPlayer === 'black' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)';
+        ctx.fill();
+        ctx.strokeStyle = state.currentPlayer === 'black' ? 'rgba(0,0,0,0.9)' : 'rgba(200,200,200,0.9)';
+        ctx.lineWidth = 2 / state.viewport.scale;
+        ctx.stroke();
+      // Hover preview: show potential lines and stone after delay (so ripple finishes first)
+      } else if (state.mode === 'free' && state.mouseBoardPos && state.mouseBoardPos.x >= 0 && state.mouseBoardPos.x <= BOARD_SIZE && state.mouseBoardPos.y >= 0 && state.mouseBoardPos.y <= BOARD_SIZE && (Date.now() - state.lastPlacementTime > HOVER_PREVIEW_DELAY_MS)) {
+        const previewLines = getPreviewLines(state.mouseBoardPos);
+        const maxPreviewPower = Math.max(0.01, ...previewLines.map(l => l.power));
+        previewLines.forEach(line => {
+          const power = line.power;
+          let width = MIN_LINE_WIDTH + (power / maxPreviewPower) * (MAX_LINE_WIDTH - MIN_LINE_WIDTH);
+          width = Math.max(MIN_LINE_WIDTH, width) / state.viewport.scale;
+          ctx.strokeStyle = line.isConflict
+            ? 'rgba(200,50,50,0.6)'
+            : state.currentPlayer === 'black'
+              ? 'rgba(0,0,0,0.6)'
+              : 'rgba(255,255,255,0.6)';
+          ctx.lineWidth = width;
+          ctx.setLineDash([4 / state.viewport.scale, 4 / state.viewport.scale]);
+          ctx.beginPath();
+          ctx.moveTo(line.from.x, line.from.y);
+          ctx.lineTo(line.to.x, line.to.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        });
+        const previewRadius = BASE_STONE_RADIUS / state.viewport.scale;
+        ctx.beginPath();
+        ctx.arc(state.mouseBoardPos.x, state.mouseBoardPos.y, previewRadius, 0, Math.PI * 2);
+        ctx.fillStyle = state.currentPlayer === 'black' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)';
+        ctx.fill();
+        ctx.strokeStyle = state.currentPlayer === 'black' ? 'rgba(0,0,0,0.8)' : 'rgba(200,200,200,0.8)';
+        ctx.lineWidth = 1 / state.viewport.scale;
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    // Score = sum of cbrt(area) per color; bar shows relative production
+    function updateUI() {
+      const activeTriangles = state.triangles.filter(t => t.vertices.every(v => !v.stale));
+      const blackEnergy = activeTriangles
+        .filter(t => t.vertices[0].color === 'black')
+        .reduce((s, t) => s + t.energy, 0);
+      const whiteEnergy = activeTriangles
+        .filter(t => t.vertices[0].color === 'white')
+        .reduce((s, t) => s + t.energy, 0);
+      const totalEnergy = blackEnergy + whiteEnergy;
+      const blackFrac = totalEnergy > 0 ? blackEnergy / totalEnergy : 0;
+      const whiteFrac = totalEnergy > 0 ? whiteEnergy / totalEnergy : 0;
+      const neutralFrac = Math.max(0, 1 - blackFrac - whiteFrac);
+
+      const formatEnergy = v => parseFloat(v.toPrecision(3)).toString();
+
+      const sb = document.getElementById('score-black');
+      const sn = document.getElementById('score-neutral');
+      const sw = document.getElementById('score-white');
+      sb.textContent = formatEnergy(blackEnergy);
+      sw.textContent = formatEnergy(whiteEnergy);
+      sb.style.flex = blackFrac;
+      sn.style.flex = neutralFrac;
+      sw.style.flex = whiteFrac;
+
+      const turnInfo = document.getElementById('turn-info');
+      const skipBtn = document.getElementById('skip-btn');
+      const areaScoreEl = document.getElementById('area-score');
+      if (state.mode === 'saved') {
+        skipBtn.style.display = 'none';
+        turnInfo.textContent = state.savedGameMoves.length > 0
+          ? `Replay: Move ${state.savedGameCurrentIndex} / ${state.savedGameMoves.length}`
+          : 'Select a game and click Load';
+        if (state.stones.length > 0) {
+          const area = computeAreaScore();
+          areaScoreEl.style.display = 'block';
+          areaScoreEl.textContent = `Area: B ${area.blackScore} W ${area.whiteScore} (territory B ${area.blackTerritory} W ${area.whiteTerritory})`;
+        } else {
+          areaScoreEl.style.display = 'none';
+        }
+      } else {
+        skipBtn.style.display = '';
+        turnInfo.textContent = state.currentPlayer === 'black' ? 'Black to Play' : 'White to Play';
+        areaScoreEl.style.display = 'none';
+      }
+    }
+
+    let lastTime = performance.now();
+    let simFrameSkip = 0;
+    const simDt = () => config.simDt ?? 1 / 60;
+    function gameLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+      const simMode = config.simulation_mode ?? config.simTimeMode ?? 'turn_based';
+      const stepsPerTurn = config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60;
+      let runSim = false;
+      if (simMode === 'continuous') {
+        runSim = true;
+      } else {
+        if (!state.simulationPaused && state.ticksRemainingThisTurn > 0) {
+          runSim = true;
+          state.ticksRemainingThisTurn--;
+          if (state.ticksRemainingThisTurn === 0) {
+            state.simulationPaused = true;
+            state.stones.forEach(s => { s.placedThisTurn = false; });
+          }
+        }
+      }
+      if (runSim) {
+        const n = state.stones.length;
+        const heavy = n > 120;
+        if (!heavy || (simFrameSkip++ % 3 === 0)) {
+          simulationTick(simDt() * (heavy ? 3 : 1));
+          stochasticTick();
+        }
+        if (simMode === 'continuous') state.stones.forEach(s => { s.placedThisTurn = false; });
+      }
+      render();
+      updateUI();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // ============ Input ============
+    // Click+hold to place (longer = bigger stone, higher cost); drag to pan
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const pt = screenToBoard(e.clientX, e.clientY);
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      const newScale = Math.max(0.2, Math.min(5, state.viewport.scale * factor));
+      state.viewport.x += pt.x * (state.viewport.scale - newScale);
+      state.viewport.y += pt.y * (state.viewport.scale - newScale);
+      state.viewport.scale = newScale;
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+      if (e.button === 0) {
+        const pt = screenToBoard(e.clientX, e.clientY);
+        state.dragStart = pt;
+        if (state.mode === 'saved') return;
+        if (pt.x >= 0 && pt.x <= BOARD_SIZE && pt.y >= 0 && pt.y <= BOARD_SIZE) {
+          const snapped = snapToGrid(pt.x, pt.y);
+          if (config.board_size !== 'free' && hasActiveStoneAt(snapped.x, snapped.y)) return;
+          state.placementState = { startTime: Date.now(), startPos: snapped };
+        }
+      }
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      const pt = screenToBoard(e.clientX, e.clientY);
+      if (pt.x >= 0 && pt.x <= BOARD_SIZE && pt.y >= 0 && pt.y <= BOARD_SIZE) {
+        state.mouseBoardPos = pt;
+      } else {
+        state.mouseBoardPos = null;
+      }
+      if (state.placementState && state.dragStart && Math.hypot(pt.x - state.dragStart.x, pt.y - state.dragStart.y) > 15) {
+        state.placementState = null;
+        state.isDragging = true;
+        state.lastDrag = pt;
+      }
+      if (state.isDragging && state.lastDrag) {
+        state.viewport.x += pt.x - state.lastDrag.x;
+        state.viewport.y += pt.y - state.lastDrag.y;
+        state.lastDrag = pt;
+      }
+    });
+
+    const handleMouseUp = e => {
+      if (e.button !== 0) return;
+      if (state.placementState) {
+        const { startTime, startPos } = state.placementState;
+        const holdDuration = (Date.now() - startTime) / 1000;
+        // Hold longer = larger stone (more energy) but higher cost
+        const placementRadius = Math.max(MIN_STONE_RADIUS, Math.min(MAX_STONE_RADIUS, MIN_STONE_RADIUS + PLACEMENT_GROW_RATE * holdDuration));
+        const initialEnergy = BASE_STONE_ENERGY * Math.pow(placementRadius / BASE_STONE_RADIUS, 2);
+        const cost = PLACEMENT_COST_FACTOR * initialEnergy;
+
+        const empire = state.stones
+          .filter(s => s.color === state.currentPlayer)
+          .reduce((sum, s) => sum + s.energy, 0);
+        const bank = state.currentPlayer === 'black' ? state.blackBank : state.whiteBank;
+        const available = bank + empire;
+
+        if (available >= cost) {
+          if (config.board_size !== 'free' && hasActiveStoneAt(startPos.x, startPos.y)) {
+            state.placementState = null;
+            return;
+          }
+          const fromBank = Math.min(cost, bank);
+          const fromEmpire = cost - fromBank;
+          if (state.currentPlayer === 'black') {
+            state.blackBank -= fromBank;
+          } else {
+            state.whiteBank -= fromBank;
+          }
+          if (fromEmpire > 0 && empire > 0) {
+            const ratio = Math.min(1, fromEmpire / empire);
+            state.stones.filter(s => s.color === state.currentPlayer).forEach(s => {
+              s.energy = Math.max(0, s.energy * (1 - ratio));
+            });
+          }
+          const mult = config.placement_energy_multiplier ?? 3;
+          state.stones.push({
+            x: startPos.x,
+            y: startPos.y,
+            color: state.currentPlayer,
+            energy: initialEnergy * mult,
+            placedThisTurn: true
+          });
+          state.placementCount++;
+          populateInitialLines();
+          state.currentPlayer = state.currentPlayer === 'black' ? 'white' : 'black';
+          state.lastPlacementTime = Date.now();
+          state.ripples.push({ startTime: Date.now(), origin: { x: startPos.x, y: startPos.y }, type: 'placement' });
+          const simMode = config.simulation_mode ?? config.simTimeMode ?? 'turn_based';
+          if (simMode === 'turn_based') {
+            state.simulationPaused = false;
+            state.ticksRemainingThisTurn = config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60;
+          }
+        }
+        state.placementState = null;
+      }
+      state.isDragging = false;
+    };
+    canvas.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    canvas.addEventListener('mouseleave', () => {
+      state.isDragging = false;
+      state.mouseBoardPos = null;
+    });
+
+    document.getElementById('skip-btn').addEventListener('click', () => {
+      state.currentPlayer = state.currentPlayer === 'black' ? 'white' : 'black';
+    });
+
+    // ============ Saved Game Mode ============
+    function resetBoard() {
+      state.stones = [];
+      state.lines = [];
+      state.triangles = [];
+      state.triangleRenderCache = {};
+      state.lineRenderCache = {};
+      state.retestQueue = [];
+      state.placementCount = 0;
+      state.blackBank = STARTING_BANK;
+      state.whiteBank = STARTING_BANK;
+      state.currentPlayer = 'black';
+      state.simulationPaused = true;
+      state.ticksRemainingThisTurn = 0;
+    }
+
+    const SAVED_GAME_SKIP_LINES_THRESHOLD = 150;
+    function applySavedGameBoardUpTo(index, onComplete) {
+      resetBoard();
+      const end = Math.min(index, state.savedGameMoves.length);
+      for (let i = 0; i < end; i++) {
+        const m = state.savedGameMoves[i];
+        state.stones.push({
+          x: m.pos.x, y: m.pos.y,
+          color: m.color,
+          energy: BASE_STONE_ENERGY
+        });
+      }
+      if (state.stones.length === 0) {
+        if (onComplete) onComplete();
+      } else if (state.stones.length > SAVED_GAME_SKIP_LINES_THRESHOLD) {
+        if (onComplete) onComplete();
+      } else if (state.stones.length > 80) {
+        populateInitialLinesChunked(onComplete);
+      } else {
+        populateInitialLines();
+        if (onComplete) onComplete();
+      }
+    }
+
+    function updateSavedGameUI() {
+      const prevBtn = document.getElementById('saved-prev-btn');
+      const nextBtn = document.getElementById('saved-next-btn');
+      const endBtn = document.getElementById('saved-end-btn');
+      const info = document.getElementById('saved-game-info');
+      const commentaryEl = document.getElementById('commentary-panel');
+      const total = state.savedGameMoves.length;
+      prevBtn.disabled = state.savedGameCurrentIndex <= 0;
+      nextBtn.disabled = state.savedGameCurrentIndex >= total;
+      endBtn.disabled = total === 0 || state.savedGameCurrentIndex >= total;
+      if (state.savedGameMeta) {
+        const { black, white } = state.savedGameMeta;
+        info.textContent = `Move ${state.savedGameCurrentIndex} / ${total}  |  ${black || 'Black'} vs ${white || 'White'}`;
+      }
+      let commentText = '';
+      if (state.savedGameCurrentIndex === 0 && state.savedGameRootComment) {
+        commentText = state.savedGameRootComment;
+      } else if (state.savedGameCurrentIndex > 0 && state.savedGameMoves[state.savedGameCurrentIndex - 1]?.comment) {
+        commentText = state.savedGameMoves[state.savedGameCurrentIndex - 1].comment;
+      }
+      commentaryEl.textContent = commentText;
+      commentaryEl.classList.toggle('visible', !!commentText && state.mode === 'saved');
+    }
+
+    async function loadSavedGame(filename) {
+      try {
+        const r = await fetch(`games/${filename}`);
+        if (!r.ok) throw new Error('File not found: ' + filename);
+        const text = await r.text();
+        const parsed = parseSGF(text);
+        if (parsed.error) throw new Error(parsed.error);
+        if (parsed.moves.length === 0) throw new Error('No moves in file');
+        state.savedGameMoves = parsed.moves;
+        state.savedGameCurrentIndex = 0;
+        state.savedGameMeta = { black: parsed.black, white: parsed.white, gameName: parsed.gameName };
+        state.savedGameRootComment = parsed.rootComment || '';
+        applySavedGameBoardUpTo(0, updateSavedGameUI);
+      } catch (e) {
+        const msg = e.message + (location.protocol === 'file:' ? ' (Use a local server: python -m http.server 8000)' : '');
+        alert('Failed to load game: ' + msg);
+      }
+    }
+
+    document.getElementById('mode-free').addEventListener('click', () => {
+      state.mode = 'free';
+      document.getElementById('mode-free').classList.add('active');
+      document.getElementById('mode-saved').classList.remove('active');
+      document.getElementById('saved-game-panel').classList.remove('visible');
+      document.getElementById('commentary-panel').classList.remove('visible');
+      resetBoard();
+    });
+
+    document.getElementById('mode-saved').addEventListener('click', () => {
+      state.mode = 'saved';
+      document.getElementById('mode-saved').classList.add('active');
+      document.getElementById('mode-free').classList.remove('active');
+      document.getElementById('saved-game-panel').classList.add('visible');
+      if (state.savedGameMoves.length > 0) {
+        applySavedGameBoardUpTo(state.savedGameCurrentIndex, updateSavedGameUI);
+      } else {
+        resetBoard();
+        updateSavedGameUI();
+      }
+    });
+
+    document.getElementById('saved-load-btn').addEventListener('click', () => {
+      const sel = document.getElementById('saved-game-select');
+      const filename = sel.value;
+      if (filename) loadSavedGame(filename);
+    });
+
+    document.getElementById('saved-prev-btn').addEventListener('click', () => {
+      if (state.savedGameCurrentIndex <= 0) return;
+      state.savedGameCurrentIndex--;
+      applySavedGameBoardUpTo(state.savedGameCurrentIndex, updateSavedGameUI);
+    });
+
+    document.getElementById('saved-next-btn').addEventListener('click', () => {
+      if (state.savedGameCurrentIndex >= state.savedGameMoves.length) return;
+      const m = state.savedGameMoves[state.savedGameCurrentIndex];
+      state.stones.push({
+        x: m.pos.x, y: m.pos.y,
+        color: m.color,
+        energy: BASE_STONE_ENERGY
+      });
+      populateInitialLines();
+      state.ripples.push({ startTime: Date.now(), origin: { x: m.pos.x, y: m.pos.y }, type: 'placement' });
+      state.savedGameCurrentIndex++;
+      updateSavedGameUI();
+    });
+
+    document.getElementById('saved-end-btn').addEventListener('click', () => {
+      if (state.savedGameMoves.length === 0) return;
+      state.savedGameCurrentIndex = state.savedGameMoves.length;
+      applySavedGameBoardUpTo(state.savedGameMoves.length, updateSavedGameUI);
+    });
+
+    // ============ Config Panel ============
+    const configGear = document.getElementById('config-gear');
+    const configPanel = document.getElementById('config-panel');
+    configGear.addEventListener('click', () => {
+      configPanel.classList.toggle('visible');
+      if (configPanel.classList.contains('visible')) configToUI();
+    });
+    document.addEventListener('click', (e) => {
+      if (!configPanel.classList.contains('visible')) return;
+      if (configPanel.contains(e.target) || configGear.contains(e.target)) return;
+      configPanel.classList.remove('visible');
+    });
+    const configInputs = ['cfg-simulation_mode', 'cfg-simulation_steps_per_turn', 'cfg-stone_max_energy', 'cfg-placement_energy_multiplier', 'cfg-energy_transfer_speed', 'cfg-zero_area_death_speed_multiplier', 'cfg-lineDistanceExponent', 'cfg-triangleAreaExponent', 'cfg-edge_energy_strength', 'cfg-edge_point_spacing', 'cfg-zero_energy_behavior', 'cfg-board_size', 'cfg-allow_dynamic_grid_resize', 'cfg-triangle_opacity_max', 'cfg-line_opacity'];
+    configInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => { configFromUI(); applyConfigToUrl(); if (id === 'cfg-lineDistanceExponent' || id === 'cfg-triangleAreaExponent') document.getElementById(id + '-val').textContent = el.value; });
+      if (el && el.type === 'range') el.addEventListener('input', () => document.getElementById(id + '-val').textContent = el.value);
+    });
+    document.getElementById('config-export').addEventListener('click', () => {
+      configFromUI();
+      const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'freego-config.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById('config-import').addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json,.txt';
+      input.onchange = () => {
+        const f = input.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = () => {
+          try {
+            const loaded = JSON.parse(r.result);
+            config = { ...DEFAULT_CONFIG, ...loaded };
+            configToUI();
+            applyConfigToUrl();
+            state.dirty = true;
+          } catch (e) { alert('Invalid config: ' + e.message); }
+        };
+        r.readAsText(f);
+      };
+      input.click();
+    });
+
+    // ============ Start ============
+    (async function init() {
+      await loadConfig();
+      configToUI();
+      applyConfigToUrl();
+      fetch('games/manifest.json')
+        .then(r => r.ok ? r.json() : [])
+        .then(files => {
+          state.gameManifest = files;
+          const sel = document.getElementById('saved-game-select');
+          sel.innerHTML = '<option value="">-- Select game --</option>' +
+            files.map(f => `<option value="${f}">${f.replace('.sgf', '')}</option>`).join('');
+        })
+        .catch(() => {});
+      requestAnimationFrame(gameLoop);
+    })();
+  </script>
+</body>
+</html>
