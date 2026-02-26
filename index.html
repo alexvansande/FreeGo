@@ -231,6 +231,8 @@
       <label><span>Edge point spacing</span><input type="number" id="cfg-edge_point_spacing" min="5" max="100"></label>
       <h3>Zero-Energy</h3>
       <label><span>Behavior</span><select id="cfg-zero_energy_behavior"><option value="flip">Flip</option><option value="dormant">Dormant</option><option value="remove">Remove</option></select></label>
+      <h3>Game Engine</h3>
+      <label><span>Engine</span><select id="cfg-game_engine"><option value="energy">Energy (Triangles)</option><option value="go">Go (Voronoi)</option></select></label>
       <h3>Board</h3>
       <label><span>Board size</span><select id="cfg-board_size"><option value="free">Free</option><option value="3">3×3</option><option value="5">5×5</option><option value="9">9×9</option><option value="17">17×17</option><option value="19">19×19</option><option value="33">33×33</option></select></label>
       <label><span>Dynamic resize</span><input type="checkbox" id="cfg-allow_dynamic_grid_resize"></label>
@@ -340,7 +342,8 @@
       board_size: 'free',
       allow_dynamic_grid_resize: false,
       triangle_opacity_max: 0.5,
-      line_opacity: 1
+      line_opacity: 1,
+      game_engine: 'energy'
     };
     let config = { ...DEFAULT_CONFIG };
 
@@ -354,7 +357,7 @@
       } catch (_) { /* file:// or missing: keep defaults */ }
       // URL params override config.json
       const params = new URLSearchParams(location.search);
-      const urlKeys = ['simulation_mode', 'simulation_steps_per_turn', 'stone_max_energy', 'placement_energy_multiplier', 'energy_transfer_speed', 'zero_area_death_speed_multiplier', 'lineDistanceExponent', 'triangleAreaExponent', 'edge_energy_strength', 'edge_point_spacing', 'zero_energy_behavior', 'board_size', 'allow_dynamic_grid_resize', 'triangle_opacity_max', 'line_opacity'];
+      const urlKeys = ['simulation_mode', 'simulation_steps_per_turn', 'stone_max_energy', 'placement_energy_multiplier', 'energy_transfer_speed', 'zero_area_death_speed_multiplier', 'lineDistanceExponent', 'triangleAreaExponent', 'edge_energy_strength', 'edge_point_spacing', 'zero_energy_behavior', 'board_size', 'allow_dynamic_grid_resize', 'triangle_opacity_max', 'line_opacity', 'game_engine'];
       urlKeys.forEach(k => {
         const v = params.get(k);
         if (v == null) return;
@@ -400,6 +403,7 @@
       set('cfg-edge_energy_strength', config.edge_energy_strength ?? 0.15);
       set('cfg-edge_point_spacing', config.edge_point_spacing ?? 20);
       set('cfg-zero_energy_behavior', config.zero_energy_behavior ?? config.deathMode ?? 'flip');
+      set('cfg-game_engine', config.game_engine ?? 'energy');
       set('cfg-board_size', config.board_size ?? 'free');
       set('cfg-allow_dynamic_grid_resize', config.allow_dynamic_grid_resize ?? false);
       set('cfg-triangle_opacity_max', config.triangle_opacity_max ?? 0.5);
@@ -428,6 +432,7 @@
       config.edge_point_spacing = get('cfg-edge_point_spacing') ?? 20;
       config.zero_energy_behavior = get('cfg-zero_energy_behavior') || 'flip';
       config.deathMode = config.zero_energy_behavior;
+      config.game_engine = get('cfg-game_engine') || 'energy';
       config.board_size = get('cfg-board_size') || 'free';
       config.allow_dynamic_grid_resize = get('cfg-allow_dynamic_grid_resize') ?? false;
       config.triangle_opacity_max = get('cfg-triangle_opacity_max') ?? 0.5;
@@ -610,6 +615,227 @@
         blackScore: blackTerritory + blackStones,
         whiteScore: whiteTerritory + whiteStones
       };
+    }
+
+    // ============ Go Engine (Voronoi mode) ============
+    function goMakePositionMap() {
+      const { spacing } = getGridParams();
+      const m = new Map();
+      for (const s of state.stones) {
+        if (s.captured) continue;
+        const c = Math.round(s.x / spacing);
+        const r = Math.round(s.y / spacing);
+        m.set(`${c},${r}`, s);
+      }
+      return m;
+    }
+
+    function goFindGroups() {
+      const { spacing } = getGridParams();
+      const posMap = goMakePositionMap();
+      const visited = new Set();
+      const groups = [];
+      for (const [key, s] of posMap) {
+        if (visited.has(s)) continue;
+        const group = [];
+        const stack = [s];
+        while (stack.length > 0) {
+          const curr = stack.pop();
+          if (visited.has(curr)) continue;
+          visited.add(curr);
+          group.push(curr);
+          const c = Math.round(curr.x / spacing);
+          const r = Math.round(curr.y / spacing);
+          for (const [dc, dr] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+            const n = posMap.get(`${c+dc},${r+dr}`);
+            if (n && !visited.has(n) && n.color === curr.color) stack.push(n);
+          }
+        }
+        groups.push({ color: s.color, stones: group });
+      }
+      return groups;
+    }
+
+    function goGetGroupLiberties(group) {
+      const { size, spacing } = getGridParams();
+      const posMap = goMakePositionMap();
+      const liberties = new Set();
+      for (const stone of group) {
+        const c = Math.round(stone.x / spacing);
+        const r = Math.round(stone.y / spacing);
+        for (const [dc, dr] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+          const nc = c + dc, nr = r + dr;
+          if (nc < 0 || nc >= size || nr < 0 || nr >= size) continue;
+          if (!posMap.has(`${nc},${nr}`)) liberties.add(`${nc},${nr}`);
+        }
+      }
+      return liberties;
+    }
+
+    function goResolveCaptures(lastColor) {
+      const opponentColor = lastColor === 'black' ? 'white' : 'black';
+      let captured = [];
+
+      // Check opponent groups first
+      const groups = goFindGroups();
+      for (const g of groups) {
+        if (g.color !== opponentColor) continue;
+        const libs = goGetGroupLiberties(g.stones);
+        if (libs.size === 0) {
+          for (const s of g.stones) { s.captured = true; captured.push(s); }
+        }
+      }
+
+      // If no opponent captured, check self-capture (suicide)
+      if (captured.length === 0) {
+        const groups2 = goFindGroups();
+        for (const g of groups2) {
+          if (g.color !== lastColor) continue;
+          const libs = goGetGroupLiberties(g.stones);
+          if (libs.size === 0) {
+            for (const s of g.stones) { s.captured = true; captured.push(s); }
+          }
+        }
+      }
+
+      return captured;
+    }
+
+    function goComputeScore() {
+      const { size, spacing } = getGridParams();
+      const posMap = goMakePositionMap();
+      const visited = new Set();
+      let bT = 0, wT = 0, bS = 0, wS = 0;
+
+      for (const [_, s] of posMap) { if (s.color === 'black') bS++; else wS++; }
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const k = `${c},${r}`;
+          if (posMap.has(k) || visited.has(k)) continue;
+          const region = [];
+          let tb = false, tw = false;
+          const stack = [[c, r]];
+          while (stack.length > 0) {
+            const [cc, cr] = stack.pop();
+            const kk = `${cc},${cr}`;
+            if (visited.has(kk)) continue;
+            const stone = posMap.get(kk);
+            if (stone) { if (stone.color === 'black') tb = true; else tw = true; continue; }
+            visited.add(kk);
+            region.push(kk);
+            for (const [dc, dr] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+              const nc = cc+dc, nr = cr+dr;
+              if (nc >= 0 && nc < size && nr >= 0 && nr < size) stack.push([nc, nr]);
+            }
+          }
+          if (tb && !tw) bT += region.length;
+          else if (tw && !tb) wT += region.length;
+        }
+      }
+      return { bT, wT, bS, wS, bTotal: bT + bS, wTotal: wT + wS };
+    }
+
+    // Voronoi cell computation for territory visualization
+    function computeVoronoiCells() {
+      const { size, spacing } = getGridParams();
+      const posMap = goMakePositionMap();
+      const cells = []; // {color, points[]}
+
+      // For each grid intersection, determine which color controls it
+      // Build a grid of ownership: stone color or territory color
+      const ownership = new Map(); // "c,r" -> "black"|"white"|"neutral"|"empty"
+
+      // First pass: mark stones
+      for (const [k, s] of posMap) {
+        ownership.set(k, s.color);
+      }
+
+      // Second pass: flood-fill empty regions
+      const visited = new Set();
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const k = `${c},${r}`;
+          if (posMap.has(k) || visited.has(k)) continue;
+          const region = [];
+          let tb = false, tw = false;
+          const stack = [[c, r]];
+          while (stack.length > 0) {
+            const [cc, cr] = stack.pop();
+            const kk = `${cc},${cr}`;
+            if (visited.has(kk)) continue;
+            if (posMap.has(kk)) {
+              const s = posMap.get(kk);
+              if (s.color === 'black') tb = true; else tw = true;
+              continue;
+            }
+            visited.add(kk);
+            region.push(kk);
+            for (const [dc, dr] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+              const nc = cc+dc, nr = cr+dr;
+              if (nc >= 0 && nc < size && nr >= 0 && nr < size) stack.push([nc, nr]);
+            }
+          }
+          const color = (tb && !tw) ? 'black' : (tw && !tb) ? 'white' : 'neutral';
+          for (const kk of region) ownership.set(kk, color);
+        }
+      }
+
+      return { ownership, size, spacing };
+    }
+
+    function renderVoronoiTerritory() {
+      const { ownership, size, spacing } = computeVoronoiCells();
+      const halfSpacing = spacing / 2;
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const k = `${c},${r}`;
+          const color = ownership.get(k);
+          if (!color || color === 'neutral') continue;
+
+          const cx = c * spacing;
+          const cy = r * spacing;
+          const isStone = state.stones.some(s => !s.captured && Math.abs(s.x - cx) < 1 && Math.abs(s.y - cy) < 1);
+
+          // Draw cell rectangle (Voronoi cell on grid = square)
+          const x0 = cx - halfSpacing;
+          const y0 = cy - halfSpacing;
+          const w = spacing;
+          const h = spacing;
+
+          if (isStone) {
+            // Stone cells: stronger color
+            ctx.fillStyle = color === 'black' ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.45)';
+          } else {
+            // Territory cells: lighter
+            ctx.fillStyle = color === 'black' ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.25)';
+          }
+          ctx.fillRect(
+            Math.max(0, x0), Math.max(0, y0),
+            Math.min(x0 + w, BOARD_SIZE) - Math.max(0, x0),
+            Math.min(y0 + h, BOARD_SIZE) - Math.max(0, y0)
+          );
+        }
+      }
+
+      // Draw Delaunay adjacency lines between same-color neighbors
+      const posMap = goMakePositionMap();
+      for (const [k, s] of posMap) {
+        const [c, r] = k.split(',').map(Number);
+        for (const [dc, dr] of [[1,0],[0,1]]) {
+          const nk = `${c+dc},${r+dr}`;
+          const n = posMap.get(nk);
+          if (n && n.color === s.color) {
+            ctx.strokeStyle = s.color === 'black' ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1.5 / state.viewport.scale;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(n.x, n.y);
+            ctx.stroke();
+          }
+        }
+      }
     }
 
     // ============ SGF Parser ============
@@ -1291,9 +1517,18 @@
         ctx.stroke();
       }
 
-      const maxStoneEnergy = Math.max(0.01, ...state.stones.map(s => Math.max(0, s.energy)));
+      // Go mode: render Voronoi territory instead of triangles/lines
+      const isGoMode = config.game_engine === 'go';
+      if (isGoMode && state.stones.filter(s => !s.captured).length > 0) {
+        renderVoronoiTerritory();
+      }
+
+      const maxStoneEnergy = Math.max(0.01, ...state.stones.map(s => Math.max(0, s.energy || 0)));
       const maxLinePower = Math.max(0.01, ...state.lines.map(l => l.power || 0));
 
+      if (isGoMode) {
+        // Skip triangle/line rendering in Go mode — just render stones below
+      } else {
       const activeTrianglesToRender = state.triangles.filter(t => t.vertices.every(v => !v.stale));
       const currentKeys = new Set(activeTrianglesToRender.map(t => triangleKey(t)));
       const now = Date.now();
@@ -1453,11 +1688,16 @@
         ctx.lineTo(entry.stoneB.x, entry.stoneB.y);
         ctx.stroke();
       });
+      } // end if !isGoMode (triangle/line rendering)
 
       const DISABLED_STONE_RADIUS = 2;
-      state.stones.forEach(stone => {
+      const activeStones = isGoMode ? state.stones.filter(s => !s.captured) : state.stones;
+      activeStones.forEach(stone => {
         let radius;
-        if (stone.disabled) {
+        if (isGoMode) {
+          const { spacing } = getGridParams();
+          radius = (spacing * 0.45) / state.viewport.scale;
+        } else if (stone.disabled) {
           radius = DISABLED_STONE_RADIUS / state.viewport.scale;
         } else {
           const energy = Math.max(0, stone.energy || 0);
@@ -1530,17 +1770,29 @@
 
     // Score = sum of cbrt(area) per color; bar shows relative production
     function updateUI() {
-      const activeTriangles = state.triangles.filter(t => t.vertices.every(v => !v.stale));
-      const blackEnergy = activeTriangles
-        .filter(t => t.vertices[0].color === 'black')
-        .reduce((s, t) => s + t.energy, 0);
-      const whiteEnergy = activeTriangles
-        .filter(t => t.vertices[0].color === 'white')
-        .reduce((s, t) => s + t.energy, 0);
-      const totalEnergy = blackEnergy + whiteEnergy;
-      const blackFrac = totalEnergy > 0 ? blackEnergy / totalEnergy : 0;
-      const whiteFrac = totalEnergy > 0 ? whiteEnergy / totalEnergy : 0;
-      const neutralFrac = Math.max(0, 1 - blackFrac - whiteFrac);
+      let blackEnergy, whiteEnergy, totalEnergy, blackFrac, whiteFrac, neutralFrac;
+
+      if (config.game_engine === 'go') {
+        const score = goComputeScore();
+        blackEnergy = score.bTotal;
+        whiteEnergy = score.wTotal;
+        totalEnergy = blackEnergy + whiteEnergy;
+        blackFrac = totalEnergy > 0 ? blackEnergy / totalEnergy : 0;
+        whiteFrac = totalEnergy > 0 ? whiteEnergy / totalEnergy : 0;
+        neutralFrac = Math.max(0, 1 - blackFrac - whiteFrac);
+      } else {
+        const activeTriangles = state.triangles.filter(t => t.vertices.every(v => !v.stale));
+        blackEnergy = activeTriangles
+          .filter(t => t.vertices[0].color === 'black')
+          .reduce((s, t) => s + t.energy, 0);
+        whiteEnergy = activeTriangles
+          .filter(t => t.vertices[0].color === 'white')
+          .reduce((s, t) => s + t.energy, 0);
+        totalEnergy = blackEnergy + whiteEnergy;
+        blackFrac = totalEnergy > 0 ? blackEnergy / totalEnergy : 0;
+        whiteFrac = totalEnergy > 0 ? whiteEnergy / totalEnergy : 0;
+        neutralFrac = Math.max(0, 1 - blackFrac - whiteFrac);
+      }
 
       const formatEnergy = v => parseFloat(v.toPrecision(3)).toString();
 
@@ -1584,7 +1836,10 @@
       const simMode = config.simulation_mode ?? config.simTimeMode ?? 'turn_based';
       const stepsPerTurn = config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60;
       let runSim = false;
-      if (simMode === 'continuous') {
+      if (config.game_engine === 'go') {
+        // No simulation in Go mode
+        runSim = false;
+      } else if (simMode === 'continuous') {
         runSim = true;
       } else {
         if (!state.simulationPaused && state.ticksRemainingThisTurn > 0) {
@@ -1658,53 +1913,89 @@
       if (e.button !== 0) return;
       if (state.placementState) {
         const { startTime, startPos } = state.placementState;
-        const holdDuration = (Date.now() - startTime) / 1000;
-        // Hold longer = larger stone (more energy) but higher cost
-        const placementRadius = Math.max(MIN_STONE_RADIUS, Math.min(MAX_STONE_RADIUS, MIN_STONE_RADIUS + PLACEMENT_GROW_RATE * holdDuration));
-        const initialEnergy = BASE_STONE_ENERGY * Math.pow(placementRadius / BASE_STONE_RADIUS, 2);
-        const cost = PLACEMENT_COST_FACTOR * initialEnergy;
 
-        const empire = state.stones
-          .filter(s => s.color === state.currentPlayer)
-          .reduce((sum, s) => sum + s.energy, 0);
-        const bank = state.currentPlayer === 'black' ? state.blackBank : state.whiteBank;
-        const available = bank + empire;
-
-        if (available >= cost) {
+        if (config.game_engine === 'go') {
+          // Go mode: simple placement + capture
+          const { spacing } = getGridParams();
           if (config.board_size !== 'free' && hasActiveStoneAt(startPos.x, startPos.y)) {
             state.placementState = null;
             return;
           }
-          const fromBank = Math.min(cost, bank);
-          const fromEmpire = cost - fromBank;
-          if (state.currentPlayer === 'black') {
-            state.blackBank -= fromBank;
-          } else {
-            state.whiteBank -= fromBank;
+          // Check if position already occupied by active stone
+          const posMap = goMakePositionMap();
+          const c = Math.round(startPos.x / spacing);
+          const r = Math.round(startPos.y / spacing);
+          if (posMap.has(`${c},${r}`)) {
+            state.placementState = null;
+            return;
           }
-          if (fromEmpire > 0 && empire > 0) {
-            const ratio = Math.min(1, fromEmpire / empire);
-            state.stones.filter(s => s.color === state.currentPlayer).forEach(s => {
-              s.energy = Math.max(0, s.energy * (1 - ratio));
-            });
-          }
-          const mult = config.placement_energy_multiplier ?? 3;
+
           state.stones.push({
             x: startPos.x,
             y: startPos.y,
             color: state.currentPlayer,
-            energy: initialEnergy * mult,
-            placedThisTurn: true
+            energy: 1,
+            captured: false
           });
           state.placementCount++;
-          populateInitialLines();
+
+          // Resolve captures
+          const captured = goResolveCaptures(state.currentPlayer);
+          // Remove captured stones from array
+          state.stones = state.stones.filter(s => !s.captured);
+
           state.currentPlayer = state.currentPlayer === 'black' ? 'white' : 'black';
           state.lastPlacementTime = Date.now();
-          state.ripples.push({ startTime: Date.now(), origin: { x: startPos.x, y: startPos.y }, type: 'placement' });
-          const simMode = config.simulation_mode ?? config.simTimeMode ?? 'turn_based';
-          if (simMode === 'turn_based') {
-            state.simulationPaused = false;
-            state.ticksRemainingThisTurn = config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60;
+          state.ripples.push({ startTime: Date.now(), origin: { x: startPos.x, y: startPos.y }, type: captured.length > 0 ? 'flip' : 'placement' });
+        } else {
+          // Energy mode: original behavior
+          const holdDuration = (Date.now() - startTime) / 1000;
+          const placementRadius = Math.max(MIN_STONE_RADIUS, Math.min(MAX_STONE_RADIUS, MIN_STONE_RADIUS + PLACEMENT_GROW_RATE * holdDuration));
+          const initialEnergy = BASE_STONE_ENERGY * Math.pow(placementRadius / BASE_STONE_RADIUS, 2);
+          const cost = PLACEMENT_COST_FACTOR * initialEnergy;
+
+          const empire = state.stones
+            .filter(s => s.color === state.currentPlayer)
+            .reduce((sum, s) => sum + s.energy, 0);
+          const bank = state.currentPlayer === 'black' ? state.blackBank : state.whiteBank;
+          const available = bank + empire;
+
+          if (available >= cost) {
+            if (config.board_size !== 'free' && hasActiveStoneAt(startPos.x, startPos.y)) {
+              state.placementState = null;
+              return;
+            }
+            const fromBank = Math.min(cost, bank);
+            const fromEmpire = cost - fromBank;
+            if (state.currentPlayer === 'black') {
+              state.blackBank -= fromBank;
+            } else {
+              state.whiteBank -= fromBank;
+            }
+            if (fromEmpire > 0 && empire > 0) {
+              const ratio = Math.min(1, fromEmpire / empire);
+              state.stones.filter(s => s.color === state.currentPlayer).forEach(s => {
+                s.energy = Math.max(0, s.energy * (1 - ratio));
+              });
+            }
+            const mult = config.placement_energy_multiplier ?? 3;
+            state.stones.push({
+              x: startPos.x,
+              y: startPos.y,
+              color: state.currentPlayer,
+              energy: initialEnergy * mult,
+              placedThisTurn: true
+            });
+            state.placementCount++;
+            populateInitialLines();
+            state.currentPlayer = state.currentPlayer === 'black' ? 'white' : 'black';
+            state.lastPlacementTime = Date.now();
+            state.ripples.push({ startTime: Date.now(), origin: { x: startPos.x, y: startPos.y }, type: 'placement' });
+            const simMode = config.simulation_mode ?? config.simTimeMode ?? 'turn_based';
+            if (simMode === 'turn_based') {
+              state.simulationPaused = false;
+              state.ticksRemainingThisTurn = config.simulation_steps_per_turn ?? config.simTicksPerMove ?? 60;
+            }
           }
         }
         state.placementState = null;
@@ -1846,9 +2137,18 @@
       state.stones.push({
         x: m.pos.x, y: m.pos.y,
         color: m.color,
-        energy: BASE_STONE_ENERGY
+        energy: BASE_STONE_ENERGY,
+        captured: false
       });
-      populateInitialLines();
+      if (config.game_engine === 'go') {
+        const captured = goResolveCaptures(m.color);
+        state.stones = state.stones.filter(s => !s.captured);
+        if (captured.length > 0) {
+          state.ripples.push({ startTime: Date.now(), origin: { x: m.pos.x, y: m.pos.y }, type: 'flip' });
+        }
+      } else {
+        populateInitialLines();
+      }
       state.ripples.push({ startTime: Date.now(), origin: { x: m.pos.x, y: m.pos.y }, type: 'placement' });
       state.savedGameCurrentIndex++;
       updateSavedGameUI();
@@ -1857,7 +2157,19 @@
     document.getElementById('saved-end-btn').addEventListener('click', () => {
       if (state.savedGameMoves.length === 0) return;
       state.savedGameCurrentIndex = state.savedGameMoves.length;
-      applySavedGameBoardUpTo(state.savedGameMoves.length, updateSavedGameUI);
+      if (config.game_engine === 'go') {
+        // Replay all moves with captures
+        resetBoard();
+        for (let i = 0; i < state.savedGameMoves.length; i++) {
+          const m = state.savedGameMoves[i];
+          state.stones.push({ x: m.pos.x, y: m.pos.y, color: m.color, energy: 1, captured: false });
+          const captured = goResolveCaptures(m.color);
+          state.stones = state.stones.filter(s => !s.captured);
+        }
+        updateSavedGameUI();
+      } else {
+        applySavedGameBoardUpTo(state.savedGameMoves.length, updateSavedGameUI);
+      }
     });
 
     // ============ Config Panel ============
@@ -1872,7 +2184,7 @@
       if (configPanel.contains(e.target) || configGear.contains(e.target)) return;
       configPanel.classList.remove('visible');
     });
-    const configInputs = ['cfg-simulation_mode', 'cfg-simulation_steps_per_turn', 'cfg-stone_max_energy', 'cfg-placement_energy_multiplier', 'cfg-energy_transfer_speed', 'cfg-zero_area_death_speed_multiplier', 'cfg-lineDistanceExponent', 'cfg-triangleAreaExponent', 'cfg-edge_energy_strength', 'cfg-edge_point_spacing', 'cfg-zero_energy_behavior', 'cfg-board_size', 'cfg-allow_dynamic_grid_resize', 'cfg-triangle_opacity_max', 'cfg-line_opacity'];
+    const configInputs = ['cfg-game_engine', 'cfg-simulation_mode', 'cfg-simulation_steps_per_turn', 'cfg-stone_max_energy', 'cfg-placement_energy_multiplier', 'cfg-energy_transfer_speed', 'cfg-zero_area_death_speed_multiplier', 'cfg-lineDistanceExponent', 'cfg-triangleAreaExponent', 'cfg-edge_energy_strength', 'cfg-edge_point_spacing', 'cfg-zero_energy_behavior', 'cfg-board_size', 'cfg-allow_dynamic_grid_resize', 'cfg-triangle_opacity_max', 'cfg-line_opacity'];
     configInputs.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', () => { configFromUI(); applyConfigToUrl(); if (id === 'cfg-lineDistanceExponent' || id === 'cfg-triangleAreaExponent') document.getElementById(id + '-val').textContent = el.value; });
